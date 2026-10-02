@@ -141,6 +141,32 @@ function runCli(file, env, extra) {
   ok(bj.transactions && bj.transactions.length === PAGES * PER && bj.run.batches.length === 34 && bai.extraction_calls === 34 && bai.fallbacks_to_rules === 0 && bj.data_validation.summary.failed === 0, PAGES + '-page statement → ' + (bj.run ? bj.run.batches.length : 0) + ' batches of 3 pages · ' + (bj.transactions || []).length + ' txns · ' + bai.extraction_calls + ' model calls · 0 failed checks', JSON.stringify({ exit: bj.exit, ai: bai }));
   ok(bj.transactions && bj.transactions.every((t) => t.account_number === '50100234567812' && t.currency === 'INR' && t.counterparty && t.counterparty !== 'UNIDENTIFIED'), 'pages 2–' + PAGES + ' inherit account and currency; every row has a counterparty');
 
+  console.log('\n7 · credit risk scoring');
+  const R2 = fx.credit_risk_summary || {}; const M2 = R2.metrics || {};
+  const W = { 'Income Stability': 25, 'Debt Service': 20, 'Liquidity': 15, 'Banking Behaviour': 10, 'Fraud Indicators': 15, 'Expense Management': 15 };
+  ok((R2.components || []).length === 6 && R2.components.every((c) => W[c.component] === c.weight_pct) && Math.abs(R2.components.reduce((a, c) => a + c.points, 0) - R2.composite_score) <= 3 && R2.scale === '0-1000', 'six components with weights 25/20/15/10/15/15 add up to the 0–1000 composite');
+  const has = (o, ks) => o && ks.every((k) => o[k] !== undefined);
+  ok(has(M2.income_stability, ['income_by_category', 'regularity_cv_pct', 'source_count', 'growth_first_to_last_pct']) && has(M2.debt_service, ['emi_obligations', 'foir_pct', 'emi_bounce_rate_pct', 'on_time_payment_rate_pct']) && has(M2.liquidity, ['avg_eod_balance', 'min_eod_balance', 'negative_balance_days']) && has(M2.banking_behaviour, ['bounces', 'bounce_charges', 'penalty_fees', 'overdraft_days']) && has(M2.fraud_indicators, ['balance_arithmetic_breaks', 'circular_transactions', 'overnight_pass_through', 'structuring']) && has(M2.expense_management, ['essential_share_pct', 'discretionary_share_pct', 'fixed_share_pct', 'variable_share_pct', 'spend_trend_first_to_last_pct']), 'every metric in the brief is reported (income, debt, liquidity, banking, fraud, expense)');
+  ok(M2.debt_service.emi_obligations.length === 3 && M2.debt_service.foir_pct === 37 && M2.debt_service.emi_bounce_rate_pct === 12.5 && M2.fraud_indicators.circular_transactions.length === 1 && M2.fraud_indicators.structuring.length === 1, 'sample 02: 3 EMIs, FOIR 37%, EMI bounce rate 12.5%, 1 circular flow, 1 structuring pattern');
+  const scen = async (name, months, tamper) => {
+    const c = new C({}); let bal = 60000; const rows = [];
+    months.forEach((list, mi) => list.forEach(([d, n, t, a]) => { bal = Math.round((t === 'C' ? bal + a : bal - a) * 100) / 100; const dt = String(d).padStart(2, '0') + '/0' + (mi + 1) + '/2025'; rows.push('| ' + dt + ' | ' + dt + ' | ' + n + ' | ' + (t === 'D' ? c.fmt(a) : '') + ' | ' + (t === 'C' ? c.fmt(a) : '') + ' | ' + c.fmt(bal + (tamper && rows.length === 4 ? 1000 : 0)) + ' |'); }));
+    const text = 'MERIDIAN BANK | Statement of Account\nAccount Holder: TEST CUSTOMER\nAccount Number: 50100111122223\nAccount Type: Savings - Individual\nCurrency: INR\nStatement Period: 01/01/2025 to 31/03/2025\nOpening Balance: 60,000.00\n\n| Date | Value Date | Narration | Debit | Credit | Balance |\n|---|---|---|---|---|---|\n' + rows.join('\n') + '\n\nPage 1 of 1';
+    await c.runPipeline([{ index: 1, text, chars: text.length }], name); return c.score(c.buildTxns(), c.state);
+  };
+  const M3 = (f) => [1, 2, 3].map(f);
+  const SAL = [1, 'NEFT CR-CITI0000002-ACME TECHNOLOGIES PVT LTD-SALARY', 'C', 150000], GRO = [9, 'UPI/5091234567/FRESHBASKET MART/freshbasket@okaxis/Groceries', 'D', 8000], PWR = [15, 'BBPS/ELECTRICITY/NORTHGRID POWER/CA 1029384', 'D', 3000];
+  let sc = await scen('clean', M3(() => [SAL, [3, 'ACH D-HOMEFIN LTD-LN0045821936-EMI', 'D', 30000], GRO, PWR]));
+  ok(sc.decision === 'APPROVE' && sc.total >= 800 && sc.band === 'Excellent', 'clean salaried customer → ' + sc.total + ' · ' + sc.band + ' · APPROVE');
+  sc = await scen('bounce', M3((m) => [SAL, [3, 'ACH D-HOMEFIN LTD-LN0045821936-EMI', 'D', 30000]].concat(m === 2 ? [[4, 'ACH RTN-HOMEFIN LTD-LN0045821936-INSUFFICIENT FUNDS', 'C', 30000], [5, 'NACH RTN CHGS-LN0045821936 INCL GST', 'D', 590], [8, 'ACH D-HOMEFIN LTD-LN0045821936-EMI REPRESENT', 'D', 30000]] : []).concat([GRO, PWR])));
+  ok(sc.decision === 'APPROVE WITH CONDITIONS' && sc.why.some((w) => /EMI bounce/.test(w)), 'one EMI bounce → APPROVE WITH CONDITIONS (NACH mandate)');
+  sc = await scen('foir', M3(() => [[1, 'NEFT CR-CITI0000002-ACME TECHNOLOGIES PVT LTD-SALARY', 'C', 50000], [3, 'ACH D-HOMEFIN LTD-LN0045821936-EMI', 'D', 30000], [5, 'ACH D-AUTOFIN BANK-LN7781200453-CAR LOAN EMI', 'D', 10000], GRO]));
+  ok(sc.decision === 'DECLINE' && sc.foir > 0.65 && sc.why.some((w) => /FOIR above 65%/.test(w)), 'FOIR ' + Math.round(sc.foir * 100) + '% (> 65%) → DECLINE, whatever the band');
+  sc = await scen('noinc', M3((m) => [[2, 'UPI/5021234567/RAHUL VERMA/rahulv@oksbi/loan', 'C', [0, 20000, 5000, 30000][m]], [6, 'POS/XX8832/SHOPKART ONLINE', 'D', 25000], [12, 'UPI/5121234567/SPICE ROUTE CAFE/spiceroute@ybl/Dinner', 'D', 9000], [25, 'LATE PAYMENT FEE', 'D', 750]]));
+  ok(sc.decision === 'DECLINE' && sc.total < 600 && sc.why.some((w) => /No verifiable income/.test(w)) && !sc.why.some((w) => /FOIR above|credit card/.test(w)), 'P2P money only (no verifiable income) → ' + sc.total + ' · ' + sc.band + ' · DECLINE, reason "no verifiable income" (not FOIR, not credit card)');
+  sc = await scen('tamper', M3(() => [SAL, [3, 'ACH D-HOMEFIN LTD-LN0045821936-EMI', 'D', 30000], GRO, PWR]), true);
+  ok(sc.decision === 'REFER' && sc.integrity.length >= 1 && sc.why.some((w) => /tampering/.test(w)), 'one edited balance → arithmetic check fails → REFER (possible tampering)');
+
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
   process.exit(0);

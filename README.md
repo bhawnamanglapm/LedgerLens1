@@ -45,7 +45,7 @@ Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped 
 
 ### Tests
 ```bash
-cd app && npm test        # 68 checks, offline, ~1 min — no API key needed
+cd app && npm test        # 76 checks, offline, ~1 min — no API key needed
 ```
 GitHub Actions runs the same tests on every push (`.github/workflows/test.yml`).
 
@@ -108,7 +108,7 @@ flowchart LR
 1. **Rules first, model second, human last.** Indian narrations are semi-structured (UPI/NEFT/NACH formats); deterministic rules are fast, free, explainable and auditable for a credit decision. The model only handles leftovers; humans only see what can change the decision.
 2. **Confidence + method on every field that matters.** Counterparty and category both carry a confidence; credit officers can see *how* each label was produced.
 3. **Integrity over coverage.** Balance arithmetic is checked on every row and opening + movements = closing per account. A broken balance **forces REFER** regardless of score — an OCR misread or an edited PDF must never silently produce an APPROVE.
-4. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (FOIR > 65% → DECLINE; tampering, structuring, circular flows → REFER; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
+4. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (no verifiable income → DECLINE; FOIR > 65% → DECLINE; tampering, structuring, circular flows → REFER; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
 5. **Not every credit is income.** Income = SALARY, BUSINESS_INCOME, INTEREST, RENTAL_INCOME only. P2P receipts, refunds, reversals, loan disbursals, own-account transfers, card payments and cash deposits are excluded.
 6. **Review effort is a product constraint.** A queue nobody can finish is useless, hence materiality triage, grouping and learnable rules.
 7. **Privacy by choice.** Rules-only mode processes everything on the user's device; LLM mode sends page text only to your own backend and the model; passwords are never stored or logged.
@@ -178,7 +178,7 @@ All test statements are **synthetic** (generated with ReportLab / Pillow by the 
 | `05_remittances_feb2025.csv` | Inward and outward foreign remittances (SWIFT, INW REMIT, FIRC, outward TT, LRS tuition) + an insurance premium | 1 / 1 / 9 | **937 · Excellent · APPROVE** | 0 | 15 / 1 / 0 / 6 |
 | built-in `jumbled` sample | Pages 4 and 5 swapped | — | **Stops:** "Pages appear jumbled: position 4 carries Page 5 of 12" | — | — |
 
-### Automated tests (`npm test`, 68 checks)
+### Automated tests (`npm test`, 76 checks)
 | Group | What is checked |
 |---|---|
 | LLM guardrails (10 unit tests) | correct answer accepted · misread amount caught by the balance check · both debit and credit rejected · bad date rejected · unknown account rejected · missing account inherited · row from another page rejected · malformed response rejected · category not allowed for the direction rejected · model confidence capped |
@@ -187,6 +187,7 @@ All test statements are **synthetic** (generated with ReportLab / Pillow by the 
 | Deliberately wrong LLM (balances off by ₹1,000) | every batch rejected → fallback to rules → same score |
 | Page order | jumbled sample stops with exit code 3 |
 | Classification | every row has level 1, a level-2 code from the taxonomy, a confidence and a method · rules-only runs label no row LLM · P2P receipts are P2P, refunds are REFUND (credit_others), "Tuition fee" → EDUCATION · rows under the 70% threshold are flagged · remittances (SWIFT, INW REMIT, FIRC, outward TT) → REMITTANCE with the sender / payee as counterparty · keywords must start a word ("EMI" does not match inside REMITTANCE or PREMIUM) · `taxonomy-example.csv` adds and overrides categories · a reviewer's choice is MANUAL · with the (mock) LLM on, unclear rows come back labelled LLM |
+| Credit risk scoring | six components with weights 25/20/15/10/15/15 add up to the composite · every metric in the brief is reported · generated customers reach every decision: clean salaried → APPROVE, one EMI bounce → APPROVE WITH CONDITIONS, FOIR > 65% → DECLINE, no verifiable income → DECLINE, one edited balance → REFER (tampering) |
 | Cheques, foreign currency, long statements | a row with no counterparty goes to the Review queue even when small · 5 cheque narration formats give channel CHEQUE, the payee and the cheque number · every row's `currency` is the currency its amounts are in, and foreign card spends keep `original_currency` / `original_amount` · a generated 102-page statement runs as 34 batches with 0 fallbacks and every page inherits the account |
 
 The mock is a **test double, not a model**: it answers in the exact tool format so plumbing and guardrails are tested offline. The real API path was also checked against a local fake of the Messages API (headers, forced tool, temperature 0, 529 retry, tool_use parsing).
