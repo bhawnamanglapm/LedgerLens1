@@ -22,7 +22,8 @@ const EXPECTED = {
   '02_multi_month_multi_account.pdf': { n: 120, score: 777, decision: 'REFER' },
   '03a_scanned_page1.png': { n: 18, score: 959, decision: 'APPROVE', ocr: true },
   '03c_scanned_page1.jpg': { n: 18, score: 959, decision: 'APPROVE', ocr: true },
-  '04_csv_export_jan2025.csv': { n: 32, score: 966, decision: 'APPROVE' }
+  '04_csv_export_jan2025.csv': { n: 32, score: 966, decision: 'APPROVE' },
+  '05_remittances_feb2025.csv': { n: 9, score: 937, decision: 'APPROVE' }
 };
 
 function runCli(file, env, extra) {
@@ -109,6 +110,11 @@ function runCli(file, env, extra) {
   const tm = cm.buildTxns().find((t) => /CLOUDNOTE/.test(t.narr)); cm.state.overrides = { ...cm.state.overrides, [tm.id]: 'ENTERTAINMENT' }; cm._txCache = null;
   const tm2 = cm.buildTxns().find((t) => t.id === tm.id);
   ok(tm.flagged && tm2.l2 === 'ENTERTAINMENT' && tm2.method === 'MANUAL' && tm2.conf === 1 && !tm2.flagged, 'a reviewer\'s category is stored as MANUAL (100%) and clears the flag');
+  const rm = runCli('05_remittances_feb2025.csv', { LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' }, []);
+  const rr = (re) => ((rm.transactions || []).find((t) => re.test(t.narration)) || {});
+  const remits = [[/INWARD REMITTANCE\/SWIFT/, 'CREDIT', 'RAVI MEHTA'], [/INW REMIT-USD/, 'CREDIT', 'ANITA RAO'], [/^FIRC/, 'CREDIT', 'ACME CORP USA'], [/OUTWARD REMITTANCE\/SWIFT/, 'DEBIT', 'PRIYA SHARMA'], [/FOREIGN OUTWARD TT/, 'DEBIT', 'NIKHIL RAO']];
+  ok(remits.every(([re, l1, cp]) => { const t = rr(re); return t.level1 === l1 && t.level2 === 'REMITTANCE' && t.counterparty === cp && t.channel === 'REMITTANCE' && t.category_group !== 'income'; }), 'inward and outward remittances (SWIFT, INW REMIT, FIRC, outward TT) → REMITTANCE, channel REMITTANCE, sender / payee as counterparty, not income');
+  ok(rr(/UNIVERSITY OF TORONTO/).level2 === 'EDUCATION' && rr(/PREMIUM POLICY/).level2 === 'INSURANCE' && !ce.kwHit('OUTWARD REMITTANCE', 'EMI') && ce.kwHit('LN0045821936-EMI JAN', 'EMI'), 'keywords must start a word: "EMI" no longer matches inside REMITTANCE or PREMIUM; tuition sent abroad → EDUCATION');
   const mk = runCli('02_multi_month_multi_account.pdf', { LLM_PROVIDER: 'mock' }, ['--llm']);
   const ml = (mk.transactions || []).filter((t) => t.method === 'LLM');
   ok(ml.length > 0 && mk.run.ai.classification_calls >= 1 && ml.every((t) => /^Model:/.test(t.method_reason)), 'with the LLM on, unclear rows are classified by the model and labelled LLM (' + ml.length + ' rows)');

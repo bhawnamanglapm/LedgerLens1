@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T21:14:55.715Z",
+  "generated_at": "2026-10-02T21:24:42.642Z",
   "run": {
     "id": 1,
     "source": "01_single_month_digital.pdf",
@@ -438,7 +438,7 @@
       "fixed_or_variable": "variable",
       "classification_confidence": 0.9,
       "method": "RULE",
-      "method_reason": "Narration keyword \"MART\"",
+      "method_reason": "Narration keyword \"DMART\"",
       "review": {
         "flagged": false,
         "reasons": [],
@@ -1454,7 +1454,7 @@
       "fixed_or_variable": "variable",
       "classification_confidence": 0.9,
       "method": "RULE",
-      "method_reason": "Narration keyword \"MART\"",
+      "method_reason": "Narration keyword \"DMART\"",
       "review": {
         "flagged": false,
         "reasons": [],

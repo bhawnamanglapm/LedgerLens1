@@ -1713,7 +1713,7 @@ class Component extends DCLogic {
   channelOf(n) {
     const u = this.normNarr(n).toUpperCase();
     if (/^(?:(?:TO|BY)\s+)?(?:CLG\s+)?(?:CHQ|CHEQUE)\b/.test(u)) return 'CHEQUE';
-    const tests = [['UPI', /^UPI\b|\bUPI[\/\-]/], ['NEFT', /\bNEFT\b/], ['IMPS', /\bIMPS\b|^MMT\//], ['RTGS', /\bRTGS\b/], ['NACH/ACH', /\bN?ACH\b|\bACHDR\b|\bECS\b|\bNACH\b/],
+    const tests = [['UPI', /^UPI\b|\bUPI[\/\-]/], ['NEFT', /\bNEFT\b/], ['IMPS', /\bIMPS\b|^MMT\//], ['RTGS', /\bRTGS\b/], ['REMITTANCE', /\bSWIFT\b|\bINW(?:ARD)? REMIT|\bOUTWARD REMIT|\b(?:INWARD|OUTWARD) TT\b|\bFOREIGN (?:IN|OUT)WARD\b|^FIRC\b|\bIRM\d/], ['NACH/ACH', /\bN?ACH\b|\bACHDR\b|\bECS\b|\bNACH\b/],
       ['ATM', /\bATM\b|^NWD[\-\s:]|^EAW[\-\s:]|^ATW[\-\s:]|\bCASH WDL\b/], ['CHEQUE', /\bCHQ|CHEQUE|\bCLG\b|\bI\/W\b|\bO\/W\b|\bMICR\b/], ['CASH', /CASH DEP|\bBY CASH\b|\bCDM\b|CASH DEPOSIT/], ['BBPS', /\bBBPS\b|BILLPAY|\bBPAY\b|^BIL\//],
       ['CARD', /^POS\b|^CARD\/|^VPS\/|^IPS\/|^PCD\/|^ECOM\b|APPLE PAY|GOOGLE PAY|INTL TXN|\bME DC\b/], ['INTERNAL', /CHGS|CHRG|CHARGES|\bFEE\b|INTEREST|\bINT\.?\s?PD\b|\bGST\b|\bTDS\b|PAYMENT RECEIVED|^CC PAYMENT|^REFUND|\bMIN BAL|\bAMB\b/], ['TRANSFER', /^TRF|TRANSFER|^INF\/|\bINFT\b/]];
     for (const [c, re] of tests) if (re.test(u)) return c;
@@ -1767,6 +1767,14 @@ class Component extends DCLogic {
     if ((m = u.match(/^APPLE PAY\/([^\/]+)/i))) return out(m[1], 0.9, 'Card · Apple Pay');
     if ((m = u.match(/^ECOM\s+(?:PUR\s*\/?\s*)?([A-Z][^\/]+)/i))) return out(m[1], 0.85, 'Card · e-commerce');
     if ((m = u.match(/^REFUND\/([^\/]+)/i))) return out(m[1], 0.9, 'Refund');
+    // ---- foreign remittance (SWIFT / TT / FIRC) ----
+    if (ch === 'REMITTANCE') {
+      const skip = /^(?:INW(?:ARD)?|OUTWARD|FOREIGN|REMIT(?:TANCE)?|SWIFT|TT|FIRC|IRM\w*|LRS|WIRE|REF\w*|[A-Z]{3}\s?[\d.,]+|[\d.,]+)$/;
+      const isBic = (x) => /^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$/.test(x) && /\d|^[A-Z]{4}(?:US|GB|IN|AE|SG|DE|HK)/.test(x);
+      const parts = u.split(/[\/\-]/).map((x) => x.trim()).filter(Boolean)
+        .filter((x) => !x.split(/\s+/).every((w) => skip.test(w)) && !isBic(x) && /^[A-Z][A-Z .&']{3,}$/i.test(x) && !/^(?:FAMILY|EXPORT|TUITION|MAINTENANCE|GIFT)\b/i.test(x));
+      if (parts.length) return out(parts[0], 0.8, 'Remittance');
+    }
     // ---- cash, cheque, bank-generated ----
     const isChq = /\bCLG\b|CHQ|CHEQUE|\bI\/W\b|\bO\/W\b/i.test(u);
     if (isChq && /^(?:(?:TO|BY)\s+)?(?:CLG\s+)?(?:CHQ|CHEQUE)\b.*\bSELF\b/i.test(u)) return out('Self (cheque cash withdrawal)', 0.85, 'Cheque · self', true);
@@ -1812,7 +1820,7 @@ class Component extends DCLogic {
       T('REFUND', 'CREDIT', 'credit_others', 'REFUND;CASHBACK;REVERSAL OF'), T('REVERSAL', 'CREDIT', 'credit_others', 'RTN;RETURN;REV-'),
       T('LOAN_DISBURSAL', 'CREDIT', 'credit_others', 'LOAN DISB;DISBURSAL;DISBURSEMENT'), T('CASH_DEPOSIT', 'CREDIT', 'credit_others', 'CASH DEP;BY CASH;CDM;CASH DEPOSIT'),
       T('P2P', 'CREDIT', 'credit_others', ''), T('SELF_TRANSFER', 'CREDIT', 'transfer', ''), T('CC_PAYMENT', 'CREDIT', 'transfer', 'PAYMENT RECEIVED'),
-      T('REMITTANCE', 'CREDIT', 'credit_others', 'INWARD REMIT;SWIFT;WIRE'), T('OTHER_CREDIT', 'CREDIT', 'credit_others', ''),
+      T('REMITTANCE', 'CREDIT', 'credit_others', 'INWARD REMIT;INW REMIT;INWARD TT;FOREIGN INWARD;FIRC;IRM/;SWIFT;WIRE'), T('OTHER_CREDIT', 'CREDIT', 'credit_others', ''),
       T('EMI', 'DEBIT', 'obligation', 'EMI;LOAN;NACH;LNPY;LOAN REPAY', 'essential', 'fixed'), T('RENT', 'DEBIT', 'essential', 'RENT', 'essential', 'fixed'),
       T('UTILITY', 'DEBIT', 'essential', 'ELECTRICITY;BROADBAND;FIBERNET;FIBRE;PIPED GAS;WATER;JAL BOARD;POWER;MOBILE;POSTPAID;DTH;RCHG;RECHARGE;BESCOM;MSEDCL;TATA POWER;ADANI ELEC;JIO;AIRTEL;BSNL;VODAFONE', 'essential', 'fixed'),
       T('GROCERY', 'DEBIT', 'essential', 'GROCER;MART;SUPERMARKET;BASKET;KIRANA;PROVISION;GENERAL STORE;BLINKIT;ZEPTO;BIGBASKET;DMART;INSTAMART', 'essential', 'variable'),
@@ -1831,7 +1839,7 @@ class Component extends DCLogic {
       T('BANK_CHARGES', 'DEBIT', 'fees', 'CHGS;CHARGES;CHRG;ANNUAL FEE;MARKUP FEE;GST ON;MIN BAL;AMB CHG;NON MAINT;CONSOLIDATED CHARGES;SMS CHG;DC ANNUAL', '', 'variable'),
       T('PENALTY', 'DEBIT', 'fees', 'LATE PAYMENT;PENAL;OVERLIMIT', '', 'variable'),
       T('CC_PAYMENT', 'DEBIT', 'transfer', 'CC PAYMENT;CARD PAYMENT;AUTOPAY'), T('SELF_TRANSFER', 'DEBIT', 'transfer', ''),
-      T('P2P', 'DEBIT', 'discretionary', '', 'discretionary', 'variable'), T('REMITTANCE', 'DEBIT', 'transfer', 'OUTWARD REMIT;SWIFT'),
+      T('P2P', 'DEBIT', 'discretionary', '', 'discretionary', 'variable'), T('REMITTANCE', 'DEBIT', 'transfer', 'OUTWARD REMIT;OUTWARD TT;FOREIGN OUTWARD;LRS;SWIFT'),
       T('TAX', 'DEBIT', 'essential', 'TDS;GST PAYMENT;INCOME TAX;CHALLAN;DTAX;CBDT', 'essential', 'variable'), T('OTHER_DEBIT', 'DEBIT', 'discretionary', '', 'discretionary', 'variable')
     ];
   }
@@ -1908,11 +1916,17 @@ class Component extends DCLogic {
 
   // ---------- classification ----------
   isPerson(cp) { return /^[A-Z][A-Z]+(\s[A-Z][A-Z]+){1,2}$/i.test(cp) && !/(LTD|PVT|INC|LLP|TRADERS|MART|BANK|STORE|CAFE|SERVICES|ACADEMY|TRUST|FINTECH|POWER|FIBER|INSURANCE|PHARMACY|RIDES|HOTELS|AIRLINES|FUELS|ONLINE|ELECTRONICS|BOARD|GAS|RWA|SCHOOL)/i.test(cp); }
+  // a keyword matches only at the start of a word, so EMI does not match inside REMITTANCE or PREMIUM
+  kwHit(u, k) {
+    const K = k.toUpperCase(); let i = u.indexOf(K);
+    while (i >= 0) { if (i === 0 || !/[A-Z0-9]/.test(u[i - 1])) return true; i = u.indexOf(K, i + 1); }
+    return false;
+  }
   classify(t, tax, ctx) {
     const u = t.narr.toUpperCase(); const L1 = t.l1;
     const pool = tax.filter((x) => x.l1 === L1);
     const custom = pool.filter((x) => x.src !== 'DEFAULT');
-    const hit = (list) => { for (const r of list) for (const k of r.kw) { if (k && u.indexOf(k.toUpperCase()) >= 0) return { r, k }; } return null; };
+    const hit = (list) => { for (const r of list) for (const k of r.kw) { if (k && this.kwHit(u, k)) return { r, k }; } return null; };
     const out = (code, conf, method, why, ask) => ({ l2: code, conf, method, why, ask: !!ask });
     let h = hit(custom); if (h) return out(h.r.code, 0.95, 'RULE', 'Custom CSV keyword "' + h.k + '"');
     // structural rules
@@ -2410,7 +2424,7 @@ class Component extends DCLogic {
       conv: 'INPUT  Digital or password-protected PDF, scanned PDF, image (PNG / JPG), Excel (XLSX / XLS), CSV, TXT / MD, or a sample.\nDIGITAL PDF  Text layer read directly; words on the same line re-joined left to right.\nSCANNED PDF / IMAGE  Page rendered and read by OCR (Tesseract, English) in the browser; confidence logged per page.\nEXCEL  Each sheet becomes one page of CSV text; dates written as DD/MM/YYYY.\nOUTPUT  One text block per page.',
       val: 'CHECKS  The "Page X of Y" footer on each page matches its position in the file.\nFAILS  If a page is out of place: the run stops and names the misplaced page.\nFALLBACK  No page footers found: the order check is skipped and noted.',
       ext: 'BATCH  3 pages at a time (sized for one model call in production).\nHEADER  Bank, account / card no., holder, account type, currency, opening balance.\nINHERITS  Pages with no header carry those fields from earlier pages; logged.\nROWS  Date, value date, narration, debit, credit, balance. Single-amount rows get debit / credit from the balance change; wrapped narrations are re-joined.',
-      enr: 'COUNTERPARTY  Mandatory. Parsed from the narration format (UPI, NEFT / RTGS, IMPS, NACH, BBPS, card, Apple Pay, ATM, cash, bank charges) with a confidence score.\nCHANNEL  UPI, NEFT, IMPS, RTGS, NACH / ACH, ATM, cheque, cash, BBPS, card, internal, transfer.\nATTRIBUTES  Loan a/c no., card last 4, platform (Stripe, Apple Pay…), counterparty a/c, foreign amount and currency.',
+      enr: 'COUNTERPARTY  Mandatory. Parsed from the narration format (UPI, NEFT / RTGS, IMPS, NACH, BBPS, card, Apple Pay, ATM, cash, cheque, foreign remittance, bank charges) with a confidence score.\nCHANNEL  UPI, NEFT, IMPS, RTGS, foreign remittance (SWIFT / TT / FIRC), NACH / ACH, ATM, cheque, cash, BBPS, card, internal, transfer.\nATTRIBUTES  Loan a/c no., card last 4, platform (Stripe, Apple Pay…), counterparty a/c, foreign amount and currency.',
       cls: 'IN SIMPLE WORDS  Like sorting receipts into labelled envelopes (Groceries, Rent, Salary, EMI…). Three helpers sort, one after another.\n1 RULE  The rule book: your own rules, fixed rules (salary, EMI with loan no., refund, bounce, own transfer, card bill), narration keywords (RENT, TUITION, SWIGGY…), payments to a person = P2P. Very sure: 84–97%.\n2 LLM  The smart guesser for leftovers (in this PoC a simple keyword stand-in for an AI model). Fairly sure: 66–78%; if nothing fits → OTHER at 35%.\n3 MANUAL  Anything under the threshold goes to the Review queue; a person decides → 100%.\nEVERY ROW  Gets Level 1 (CREDIT / DEBIT), Level 2 category, a confidence % and the method that sorted it.',
       review: 'WHO  A person, in the Review queue.\nDOES  Fix the counterparty or category, or confirm as is. Each fix = MANUAL, 100% confidence; the score re-runs instantly.\nDONE  When no transaction is below the threshold.',
       score: 'INCOME 25%  Regularity, sources, growth, level (P2P, refunds, loans, own transfers excluded).\nDEBT 20%  EMIs per loan, FOIR, bounce rate, on-time rate.\nLIQUIDITY 15%  Avg / min end-of-day balance, negative days.\nBANKING 10%  Bounces, charges, penalties, overdraft.\nFRAUD 15%  Balance arithmetic, circular, overnight, structuring.\nEXPENSE 15%  Essential vs discretionary, fixed vs variable, trend, savings.\nTOTAL  Weighted sum × 10 → 0–1000.',

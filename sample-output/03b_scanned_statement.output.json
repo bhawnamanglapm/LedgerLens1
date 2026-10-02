@@ -427,7 +427,7 @@
       "fixed_or_variable": "variable",
       "classification_confidence": 0.9,
       "method": "RULE",
-      "method_reason": "Narration keyword \"MART\"",
+      "method_reason": "Narration keyword \"DMART\"",
       "review": {
         "flagged": false,
         "reasons": [],
@@ -1416,7 +1416,7 @@
       "fixed_or_variable": "variable",
       "classification_confidence": 0.9,
       "method": "RULE",
-      "method_reason": "Narration keyword \"MART\"",
+      "method_reason": "Narration keyword \"DMART\"",
       "review": {
         "flagged": false,
         "reasons": [],

@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T21:15:05.571Z",
+  "generated_at": "2026-10-02T21:24:52.803Z",
   "run": {
     "id": 1,
     "source": "03c_scanned_page1.jpg",
@@ -437,7 +437,7 @@
       "fixed_or_variable": "variable",
       "classification_confidence": 0.9,
       "method": "RULE",
-      "method_reason": "Narration keyword \"MART\"",
+      "method_reason": "Narration keyword \"DMART\"",
       "review": {
         "flagged": false,
         "reasons": [],
