@@ -93,6 +93,25 @@ function runCli(file, env, extra) {
   ok(fx.transactions && fx.transactions.every((t) => t.currency === accCur[t.account_number]), 'every row\'s currency is the currency its amounts are in (the account currency)');
   const noCp = (fx.transactions || []).filter((t) => t.counterparty === 'UNIDENTIFIED');
   ok(noCp.length === 1 && noCp.every((t) => t.review.flagged && !t.review.auto_accepted_low_impact), 'a row with no counterparty in the narration (' + (noCp[0] || {}).narration + ') goes to the Review queue, even when the amount is small');
+  // classification engine
+  const T2 = fx.transactions || []; const tax = C.prototype.defaultTaxonomy.call({});
+  ok(T2.length && T2.every((t) => /^(CREDIT|DEBIT)$/.test(t.level1) && tax.some((x) => x.code === t.level2 && x.l1 === t.level1) && typeof t.classification_confidence === 'number' && /^(RULE|LLM|MANUAL)$/.test(t.method)), 'every row has level 1, a level 2 from the taxonomy for that direction, a confidence and a method');
+  ok(T2.every((t) => t.method !== 'LLM'), 'rules-only run labels no row LLM (fallback keywords are RULE)');
+  const by = (re) => T2.filter((t) => re.test(t.narration));
+  ok(by(/NEHA GUPTA|ANKIT SHARMA\/ankit\.s@okicici\/(Split|Trip)/).every((t) => t.level1 === 'CREDIT' && t.level2 === 'P2P' && t.category_group !== 'income'), 'P2P receipts are P2P, not income');
+  ok(by(/REFUND/).length >= 2 && by(/REFUND/).every((t) => t.level2 === 'REFUND' && t.category_group === 'credit_others'), 'merchant refunds are REFUND (credit_others), not income');
+  ok(by(/Tuition fee/i).length >= 2 && by(/Tuition fee/i).every((t) => t.level2 === 'EDUCATION'), '"Tuition fee" in the narration → EDUCATION');
+  ok(T2.filter((t) => t.counterparty_confidence < 0.7 || t.classification_confidence < 0.7).every((t) => t.review.flagged || t.review.auto_accepted_low_impact) && T2.filter((t) => t.review.flagged).every((t) => t.review.reasons.length), 'every row under the 70% threshold is flagged (or auto-accepted as low impact, with its reasons kept)');
+  const tx = runCli('02_multi_month_multi_account.pdf', { LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' }, ['--taxonomy', path.join(ROOT, 'taxonomy-example.csv')]);
+  const cat = (re) => ((tx.transactions || []).find((t) => re.test(t.narration)) || {});
+  ok(cat(/CLOUDNOTE/).level2 === 'SUBSCRIPTION' && cat(/LITTLE STARS/).level2 === 'CHILDCARE' && cat(/PLAYARENA/).level2 === 'ENTERTAINMENT' && /Custom CSV/.test(cat(/PLAYARENA/).method_reason || ''), 'taxonomy CSV adds categories (SUBSCRIPTION, CHILDCARE) and overrides one (ENTERTAINMENT keywords)');
+  const cm = new C({}); await cm.runPipeline(cm.genSample('flags'), 'manual override test');
+  const tm = cm.buildTxns().find((t) => /CLOUDNOTE/.test(t.narr)); cm.state.overrides = { ...cm.state.overrides, [tm.id]: 'ENTERTAINMENT' }; cm._txCache = null;
+  const tm2 = cm.buildTxns().find((t) => t.id === tm.id);
+  ok(tm.flagged && tm2.l2 === 'ENTERTAINMENT' && tm2.method === 'MANUAL' && tm2.conf === 1 && !tm2.flagged, 'a reviewer\'s category is stored as MANUAL (100%) and clears the flag');
+  const mk = runCli('02_multi_month_multi_account.pdf', { LLM_PROVIDER: 'mock' }, ['--llm']);
+  const ml = (mk.transactions || []).filter((t) => t.method === 'LLM');
+  ok(ml.length > 0 && mk.run.ai.classification_calls >= 1 && ml.every((t) => /^Model:/.test(t.method_reason)), 'with the LLM on, unclear rows are classified by the model and labelled LLM (' + ml.length + ' rows)');
   ok(fxRows.length === 3 && fxRows.every((t) => t.original_currency === 'USD' && t.original_amount === 24.99 && t.currency === 'INR'), 'foreign card spends keep the original amount separately (' + fxRows.length + ' × USD 24.99, billed in INR)');
 
   // a 102-page statement (34 batches), header on page 1 only — the batching must scale and every page must inherit the account

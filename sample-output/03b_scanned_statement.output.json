@@ -536,8 +536,8 @@
       "essential": "discretionary",
       "fixed_or_variable": "variable",
       "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
+      "method": "RULE",
+      "method_reason": "No rule matched (LLM off)",
       "review": {
         "flagged": false,
         "reasons": [
@@ -1336,8 +1336,8 @@
       "essential": "discretionary",
       "fixed_or_variable": "variable",
       "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
+      "method": "RULE",
+      "method_reason": "No rule matched (LLM off)",
       "review": {
         "flagged": true,
         "reasons": [

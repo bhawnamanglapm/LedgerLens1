@@ -4,10 +4,12 @@
  * Uses the exact same engine as the web PoC (engine.js = the page's logic) and adds Node adapters for
  * PDF text (pdfjs-dist), OCR (tesseract.js) and scanned-PDF rendering (poppler's pdftoppm, if installed).
  *
- *   node cli.js <file> [more files…] [-o output.json] [--password <pw>] [--sample flags|clean|jumbled] [--review all] [--llm]
+ *   node cli.js <file> [more files…] [-o output.json] [--password <pw>] [--sample flags|clean|jumbled] [--review all] [--llm] [--taxonomy rules.csv]
  *
  *   --llm   use the LLM for batch extraction and unclear-row classification (needs ANTHROPIC_API_KEY;
  *           LLM_MODEL to override the model). Rules stay as cross-check and fallback.
+ *   --taxonomy  CSV that overrides or extends the default categories (same format as the web app's
+ *           Taxonomy upload: category,level1[,group,keywords]; see taxonomy-example.csv).
  */
 const fs = require('fs'); const path = require('path'); const os = require('os'); const { execFileSync } = require('child_process');
 const args = process.argv.slice(2);
@@ -19,6 +21,7 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--sample') opt.sample = args[++i];
   else if (a === '--review') opt.review = args[++i];
   else if (a === '--llm') opt.llm = true;
+  else if (a === '--taxonomy') opt.taxonomy = args[++i];
   else if (a === '-h' || a === '--help') { console.log(fs.readFileSync(__filename, 'utf8').split('*/')[0]); process.exit(0); }
   else opt.files.push(a);
 }
@@ -65,6 +68,10 @@ class CliEngine extends Component {
 
 (async () => {
   const c = new CliEngine({}); c.state.reviewMode = opt.review === 'all' ? 'all' : 'smart'; c._cliPaths = {};
+  if (opt.taxonomy) {
+    try { c.state.customRules = c.parseCsv(fs.readFileSync(opt.taxonomy, 'utf8')); } catch (e) { console.error('✗ --taxonomy: ' + e.message); process.exit(1); }
+    console.error('  Taxonomy: ' + c.state.customRules.length + ' custom rule(s) from ' + path.basename(opt.taxonomy));
+  }
   if (opt.llm) {
     const i = llm.info();
     if (!i.llm) { console.error('✗ --llm needs ANTHROPIC_API_KEY (or LLM_PROVIDER=mock for the offline test double)'); process.exit(4); }

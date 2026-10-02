@@ -502,7 +502,7 @@ Page 1 of 12</pre></div>
 </div>
 <div style="border:1px solid #8A6400;border-radius:6px;background:#FFF8E6;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0">
 <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="width:28px;height:28px;border-radius:50%;background:#8A6400;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">2</span><div style="display:flex;flex-direction:column"><strong style="font-size:14.5px">LLM — the smart guesser</strong><span style="font-size:12px;color:#30343B">For lines no rule matched. A guess, so less sure.</span></div></div>
-<div style="font-size:12.5px;color:#22262D;display:flex;flex-direction:column;gap:6px"><span>In this PoC it is a simple keyword stand-in for an AI model; in production a real model reads the line.</span><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">Same company credits every month, no "salary" word</span><span style="font-weight:600">→ SALARY · 78%</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">…MOBILE RECHARGE… / …UBER…</span><span style="font-weight:600">→ UTILITY / TRAVEL · 66%</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">INTL TXN/USD 24.99/CLOUDNOTE INC/APPLE PAY</span><span style="font-weight:600">→ OTHER_DEBIT · 35% (nothing fits)</span></div></div>
+<div style="font-size:12.5px;color:#22262D;display:flex;flex-direction:column;gap:6px"><span>With the AI step on LLM (Claude), the model reads these lines and they are labelled LLM. With Rules only, fallback keyword rules fill in at lower confidence and are labelled RULE.</span><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">Same company credits every month, no "salary" word</span><span style="font-weight:600">→ SALARY · 78%</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">…MOBILE RECHARGE… / …UBER…</span><span style="font-weight:600">→ UTILITY / TRAVEL · 66%</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">INTL TXN/USD 24.99/CLOUDNOTE INC/APPLE PAY</span><span style="font-weight:600">→ OTHER_DEBIT · 35% (nothing fits)</span></div></div>
 <div class="mono" style="font-size:12px;font-weight:600;color:#8A6400;border-top:1px solid rgba(0,0,0,.08);padding-top:6px">This run: {{clsLlmN}} rows · {{clsOtherN}} ended as OTHER</div>
 </div>
 <div style="border:1px solid #1E7B45;border-radius:6px;background:#EAF6EE;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0">
@@ -960,7 +960,7 @@ FREELANCE_INCOME,CREDIT,income,STRIPE,,</pre>
 <div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid #E4E1DA;padding-top:14px;font-size:12.5px;color:#30343B">
 <span style="font-weight:600;color:#16181D">Classification order</span>
 <span>1 · CSV rules → 2 · structural rules (bounces, own-account transfers, refunds, loan disbursal, salary, EMI with loan no.) → 3 · narration keywords (so "Tuition fee" beats P2P) → 4 · P2P for individuals → 5 · LLM stage → 6 · manual review.</span>
-<span>In this PoC the LLM stage is a lexical stand-in that returns lower confidence; in production it is a model call over each 3-page batch.</span>
+<span>With the AI step on LLM (Claude), extraction is one model call per 3-page batch and unclear rows go to the model; with Rules only, the rule parser and fallback keyword rules do the work and every row is labelled RULE.</span>
 </div>
 </div>
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
@@ -1678,7 +1678,7 @@ class Component extends DCLogic {
   llmClsKey(t) { return t.l1 + '|' + this.normNarr(t.narr).toUpperCase().replace(/\d{4,}/g, '#').slice(0, 120); }
   async llmClassify(T) {
     const stats = this._llmStats; const tax = this.taxonomy();
-    const cand = {}; T.filter((t) => t.method === 'LLM' && !t.manual).forEach((t) => { const k = this.llmClsKey(t); if (!cand[k]) cand[k] = t; });
+    const cand = {}; T.filter((t) => (t.llmAsk || t.method === 'LLM') && !t.manual).forEach((t) => { const k = this.llmClsKey(t); if (!cand[k]) cand[k] = t; });
     const keys = Object.keys(cand); const map = {};
     if (!keys.length) return map;
     const chunks = []; for (let i = 0; i < keys.length; i += 40) chunks.push(keys.slice(i, i + 40));
@@ -1913,7 +1913,7 @@ class Component extends DCLogic {
     const pool = tax.filter((x) => x.l1 === L1);
     const custom = pool.filter((x) => x.src !== 'DEFAULT');
     const hit = (list) => { for (const r of list) for (const k of r.kw) { if (k && u.indexOf(k.toUpperCase()) >= 0) return { r, k }; } return null; };
-    const out = (code, conf, method, why) => ({ l2: code, conf, method, why });
+    const out = (code, conf, method, why, ask) => ({ l2: code, conf, method, why, ask: !!ask });
     let h = hit(custom); if (h) return out(h.r.code, 0.95, 'RULE', 'Custom CSV keyword "' + h.k + '"');
     // structural rules
     const own = ctx.ownNames.some((nm) => t.cp.toUpperCase().indexOf(nm) >= 0) || t.attrs.some((a) => a.k === 'Cpty a/c' && ctx.ownLast4.indexOf(a.v.replace(/\D/g, '').slice(-4)) >= 0);
@@ -1934,11 +1934,11 @@ class Component extends DCLogic {
     // real LLM answer (when the model was used for this run)
     if (ctx.llmCls) { const lm = ctx.llmCls[this.llmClsKey(t)]; if (lm) return out(lm.l2, lm.conf, 'LLM', lm.why); }
     // recurring-employer heuristic for unlabeled salary
-    if (L1 === 'CREDIT' && ctx.recurring[t.cpKey] >= 2 && /LTD|PVT|INC|LLP|LIMI|PRIVA/.test(t.cp.toUpperCase())) return out('SALARY', 0.78, 'LLM', 'Monthly recurring credit from a company');
-    // "LLM" fallback stage (simulated with a lexical model in this PoC)
+    if (L1 === 'CREDIT' && ctx.recurring[t.cpKey] >= 2 && /LTD|PVT|INC|LLP|LIMI|PRIVA/.test(t.cp.toUpperCase())) return out('SALARY', 0.78, 'RULE', 'Monthly recurring credit from a company', true);
+    // fallback rules for rows no rule above settled; they stay RULE and are sent to the model when it is on (ask = true)
     const lex = [['SHOPPING', /AMZN|FLIPKART|MYNTRA|BAZAAR|RETAIL/], ['DINING', /KITCHEN|BISTRO|DHABA|PIZZA|BURGER/], ['TRAVEL', /UBER|OLA|IRCTC|TRIP|FLIGHT/], ['UTILITY', /RECHARGE|BILL/]];
-    for (const [c, re] of lex) if (L1 === 'DEBIT' && re.test(u)) return out(c, 0.66, 'LLM', 'Semantic match on narration' + (ctx.llmCls ? '' : ' (keyword stand-in — LLM off)'));
-    return out(L1 === 'CREDIT' ? 'OTHER_CREDIT' : 'OTHER_DEBIT', 0.35, 'LLM', 'No confident category' + (ctx.llmCls ? '' : ' (keyword stand-in — LLM off)'));
+    for (const [c, re] of lex) if (L1 === 'DEBIT' && re.test(u)) return out(c, 0.66, 'RULE', 'Fallback keyword on narration' + (ctx.llmCls ? ' (model gave no answer)' : ' (LLM off)'), true);
+    return out(L1 === 'CREDIT' ? 'OTHER_CREDIT' : 'OTHER_DEBIT', 0.35, 'RULE', 'No rule matched' + (ctx.llmCls ? ' (model gave no answer)' : ' (LLM off)'), true);
   }
 
   // ---------- full pipeline (derived) ----------
@@ -1978,7 +1978,7 @@ class Component extends DCLogic {
       const reasons = [];
       if (t.cpConf < s.threshold) reasons.push('Counterparty unclear (' + Math.round(t.cpConf * 100) + '%)');
       if (c.conf < s.threshold) reasons.push('Low classification confidence (' + Math.round(c.conf * 100) + '%)');
-      return { ...t, l2: c.l2, conf: c.conf, method: c.method, why: c.why, group: cat.group || '', ess: cat.ess || '', fix: cat.fix || '', flagged: reasons.length > 0, reasons };
+      return { ...t, l2: c.l2, conf: c.conf, method: c.method, why: c.why, llmAsk: !!c.ask, group: cat.group || '', ess: cat.ess || '', fix: cat.fix || '', flagged: reasons.length > 0, reasons };
     });
     return this.triage(out0, s);
   }
@@ -2300,7 +2300,7 @@ class Component extends DCLogic {
       await sleep(40);
       let llmCls = null;
       if (useLLM) {
-        const nU = T.filter((t) => t.method === 'LLM').length;
+        const nU = T.filter((t) => t.llmAsk).length;
         push(4, 'running', 'Asking the model about ' + nU + ' unclear row(s)…', 'Rules matched ' + (T.length - nU) + ' rows; sending the rest to ' + this._llmStats.model);
         llmCls = await this.llmClassify(T);
         tmp.llmCls = llmCls; T = this.buildTxns(tmp);

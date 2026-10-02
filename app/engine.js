@@ -692,7 +692,7 @@ class Component extends DCLogic {
   llmClsKey(t) { return t.l1 + '|' + this.normNarr(t.narr).toUpperCase().replace(/\d{4,}/g, '#').slice(0, 120); }
   async llmClassify(T) {
     const stats = this._llmStats; const tax = this.taxonomy();
-    const cand = {}; T.filter((t) => t.method === 'LLM' && !t.manual).forEach((t) => { const k = this.llmClsKey(t); if (!cand[k]) cand[k] = t; });
+    const cand = {}; T.filter((t) => (t.llmAsk || t.method === 'LLM') && !t.manual).forEach((t) => { const k = this.llmClsKey(t); if (!cand[k]) cand[k] = t; });
     const keys = Object.keys(cand); const map = {};
     if (!keys.length) return map;
     const chunks = []; for (let i = 0; i < keys.length; i += 40) chunks.push(keys.slice(i, i + 40));
@@ -927,7 +927,7 @@ class Component extends DCLogic {
     const pool = tax.filter((x) => x.l1 === L1);
     const custom = pool.filter((x) => x.src !== 'DEFAULT');
     const hit = (list) => { for (const r of list) for (const k of r.kw) { if (k && u.indexOf(k.toUpperCase()) >= 0) return { r, k }; } return null; };
-    const out = (code, conf, method, why) => ({ l2: code, conf, method, why });
+    const out = (code, conf, method, why, ask) => ({ l2: code, conf, method, why, ask: !!ask });
     let h = hit(custom); if (h) return out(h.r.code, 0.95, 'RULE', 'Custom CSV keyword "' + h.k + '"');
     // structural rules
     const own = ctx.ownNames.some((nm) => t.cp.toUpperCase().indexOf(nm) >= 0) || t.attrs.some((a) => a.k === 'Cpty a/c' && ctx.ownLast4.indexOf(a.v.replace(/\D/g, '').slice(-4)) >= 0);
@@ -948,11 +948,11 @@ class Component extends DCLogic {
     // real LLM answer (when the model was used for this run)
     if (ctx.llmCls) { const lm = ctx.llmCls[this.llmClsKey(t)]; if (lm) return out(lm.l2, lm.conf, 'LLM', lm.why); }
     // recurring-employer heuristic for unlabeled salary
-    if (L1 === 'CREDIT' && ctx.recurring[t.cpKey] >= 2 && /LTD|PVT|INC|LLP|LIMI|PRIVA/.test(t.cp.toUpperCase())) return out('SALARY', 0.78, 'LLM', 'Monthly recurring credit from a company');
-    // "LLM" fallback stage (simulated with a lexical model in this PoC)
+    if (L1 === 'CREDIT' && ctx.recurring[t.cpKey] >= 2 && /LTD|PVT|INC|LLP|LIMI|PRIVA/.test(t.cp.toUpperCase())) return out('SALARY', 0.78, 'RULE', 'Monthly recurring credit from a company', true);
+    // fallback rules for rows no rule above settled; they stay RULE and are sent to the model when it is on (ask = true)
     const lex = [['SHOPPING', /AMZN|FLIPKART|MYNTRA|BAZAAR|RETAIL/], ['DINING', /KITCHEN|BISTRO|DHABA|PIZZA|BURGER/], ['TRAVEL', /UBER|OLA|IRCTC|TRIP|FLIGHT/], ['UTILITY', /RECHARGE|BILL/]];
-    for (const [c, re] of lex) if (L1 === 'DEBIT' && re.test(u)) return out(c, 0.66, 'LLM', 'Semantic match on narration' + (ctx.llmCls ? '' : ' (keyword stand-in — LLM off)'));
-    return out(L1 === 'CREDIT' ? 'OTHER_CREDIT' : 'OTHER_DEBIT', 0.35, 'LLM', 'No confident category' + (ctx.llmCls ? '' : ' (keyword stand-in — LLM off)'));
+    for (const [c, re] of lex) if (L1 === 'DEBIT' && re.test(u)) return out(c, 0.66, 'RULE', 'Fallback keyword on narration' + (ctx.llmCls ? ' (model gave no answer)' : ' (LLM off)'), true);
+    return out(L1 === 'CREDIT' ? 'OTHER_CREDIT' : 'OTHER_DEBIT', 0.35, 'RULE', 'No rule matched' + (ctx.llmCls ? ' (model gave no answer)' : ' (LLM off)'), true);
   }
 
   // ---------- full pipeline (derived) ----------
@@ -992,7 +992,7 @@ class Component extends DCLogic {
       const reasons = [];
       if (t.cpConf < s.threshold) reasons.push('Counterparty unclear (' + Math.round(t.cpConf * 100) + '%)');
       if (c.conf < s.threshold) reasons.push('Low classification confidence (' + Math.round(c.conf * 100) + '%)');
-      return { ...t, l2: c.l2, conf: c.conf, method: c.method, why: c.why, group: cat.group || '', ess: cat.ess || '', fix: cat.fix || '', flagged: reasons.length > 0, reasons };
+      return { ...t, l2: c.l2, conf: c.conf, method: c.method, why: c.why, llmAsk: !!c.ask, group: cat.group || '', ess: cat.ess || '', fix: cat.fix || '', flagged: reasons.length > 0, reasons };
     });
     return this.triage(out0, s);
   }
@@ -1314,7 +1314,7 @@ class Component extends DCLogic {
       await sleep(40);
       let llmCls = null;
       if (useLLM) {
-        const nU = T.filter((t) => t.method === 'LLM').length;
+        const nU = T.filter((t) => t.llmAsk).length;
         push(4, 'running', 'Asking the model about ' + nU + ' unclear row(s)…', 'Rules matched ' + (T.length - nU) + ' rows; sending the rest to ' + this._llmStats.model);
         llmCls = await this.llmClassify(T);
         tmp.llmCls = llmCls; T = this.buildTxns(tmp);

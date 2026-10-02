@@ -1,0 +1,4 @@
+category,level1,group,keywords,expense_type,cost_type
+SUBSCRIPTION,DEBIT,discretionary,STREAMFLIX;CLOUDNOTE,discretionary,fixed
+CHILDCARE,DEBIT,essential,LITTLE STARS,essential,fixed
+ENTERTAINMENT,DEBIT,discretionary,GAMING;MOVIE;NETFLIX;SPOTIFY;HOTSTAR;BOOKMYSHOW;PLAYARENA,discretionary,variable
