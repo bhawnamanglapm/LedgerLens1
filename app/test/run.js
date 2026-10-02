@@ -21,6 +21,7 @@ const EXPECTED = {
   '01_single_month_digital.pdf': { n: 32, score: 966, decision: 'APPROVE' },
   '02_multi_month_multi_account.pdf': { n: 120, score: 777, decision: 'REFER' },
   '03a_scanned_page1.png': { n: 18, score: 959, decision: 'APPROVE', ocr: true },
+  '03c_scanned_page1.jpg': { n: 18, score: 959, decision: 'APPROVE', ocr: true },
   '04_csv_export_jan2025.csv': { n: 32, score: 966, decision: 'APPROVE' }
 };
 
@@ -90,6 +91,8 @@ function runCli(file, env, extra) {
   const accCur = {}; (fx.accounts || []).forEach((a) => { accCur[a.account_number] = a.currency; });
   const fxRows = (fx.transactions || []).filter((t) => t.original_currency);
   ok(fx.transactions && fx.transactions.every((t) => t.currency === accCur[t.account_number]), 'every row\'s currency is the currency its amounts are in (the account currency)');
+  const noCp = (fx.transactions || []).filter((t) => t.counterparty === 'UNIDENTIFIED');
+  ok(noCp.length === 1 && noCp.every((t) => t.review.flagged && !t.review.auto_accepted_low_impact), 'a row with no counterparty in the narration (' + (noCp[0] || {}).narration + ') goes to the Review queue, even when the amount is small');
   ok(fxRows.length === 3 && fxRows.every((t) => t.original_currency === 'USD' && t.original_amount === 24.99 && t.currency === 'INR'), 'foreign card spends keep the original amount separately (' + fxRows.length + ' × USD 24.99, billed in INR)');
 
   // a 102-page statement (34 batches), header on page 1 only — the batching must scale and every page must inherit the account

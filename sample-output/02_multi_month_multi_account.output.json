@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T20:22:20.946Z",
+  "generated_at": "2026-10-02T20:55:07.646Z",
   "run": {
     "id": 1,
     "source": "02_multi_month_multi_account.pdf",
@@ -1186,13 +1186,13 @@
       "method": "LLM",
       "method_reason": "No confident category (keyword stand-in — LLM off)",
       "review": {
-        "flagged": false,
+        "flagged": true,
         "reasons": [
           "Counterparty unclear (15%)",
           "Low classification confidence (35%)"
         ],
-        "impact": "LOW",
-        "auto_accepted_low_impact": true
+        "impact": "HIGH",
+        "auto_accepted_low_impact": false
       },
       "source_page": 2,
       "batch": 1
@@ -4888,7 +4888,7 @@
       "1 penalty fee(s) on the credit card"
     ],
     "provisional": true,
-    "pending_review_items": 5,
+    "pending_review_items": 6,
     "components": [
       {
         "component": "Income Stability",

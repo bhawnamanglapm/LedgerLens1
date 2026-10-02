@@ -1,19 +1,25 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-01T20:31:44.963Z",
+  "generated_at": "2026-10-02T20:54:02.276Z",
   "run": {
-    "id": 4,
-    "source": "03b_scanned_statement.pdf",
-    "pages": 2,
+    "id": 1,
+    "source": "03c_scanned_page1.jpg",
+    "pages": 1,
     "batches": [
       {
         "batch": 1,
-        "pages": "1–2",
-        "rows": 32,
+        "pages": "1",
+        "rows": 18,
         "accounts": "…3344",
-        "metadata_inherited": "account no., bank, currency → pages 2 have no header"
+        "metadata_inherited": "—",
+        "llm": "LLM off — rule parser"
       }
-    ]
+    ],
+    "ai": {
+      "mode": "rules",
+      "model": null,
+      "note": "No LLM backend connected for this run — rule parser and keyword stand-in used"
+    }
   },
   "accounts": [
     {
@@ -24,14 +30,13 @@
       "is_credit_card": false,
       "currency": "INR",
       "opening_balance": 58420,
-      "closing_balance": 62091.4,
+      "closing_balance": null,
       "statement_period": {
         "from": "2025-01-01",
         "to": "2025-01-31"
       },
       "pages": [
-        1,
-        2
+        1
       ],
       "entered_manually": []
     }
@@ -39,8 +44,8 @@
   "data_validation": {
     "summary": {
       "total": 22,
-      "passed": 20,
-      "warnings": 1,
+      "passed": 19,
+      "warnings": 2,
       "failed": 0,
       "not_applicable": 1
     },
@@ -68,7 +73,7 @@
         "group": "On upload",
         "check": "Scanned PDF / image detected",
         "status": "PASS",
-        "result": "2 page(s) read by OCR",
+        "result": "1 page(s) read by OCR",
         "rule": "Pages with no text layer, and PNG / JPG images, are sent to OCR automatically.",
         "on_fail": "Not a failure — the page is read by OCR instead."
       },
@@ -77,7 +82,7 @@
         "group": "On upload",
         "check": "OCR engine available",
         "status": "PASS",
-        "result": "OCR engine started and read 2 page(s)",
+        "result": "OCR engine started and read 1 page(s)",
         "rule": "Before OCR, the browser is checked for background workers, script loading, WebAssembly and in-memory data.",
         "on_fail": "Clear error naming what is blocked; digital PDFs, Excel, CSV and text still work."
       },
@@ -86,7 +91,7 @@
         "group": "On upload",
         "check": "Transactions found",
         "status": "PASS",
-        "result": "32 transaction(s) recognised",
+        "result": "18 transaction(s) recognised",
         "rule": "At least one row with a date and an amount must be recognised.",
         "on_fail": "Run stops: “No transaction rows were recognised”."
       },
@@ -113,7 +118,7 @@
         "group": "File",
         "check": "Readable text on every page",
         "status": "PASS",
-        "result": "2 page(s) with text",
+        "result": "1 page(s) with text",
         "rule": "Each page must yield some text after conversion / OCR.",
         "on_fail": "Warning listing the blank pages."
       },
@@ -122,7 +127,7 @@
         "group": "File",
         "check": "OCR quality (scans and images)",
         "status": "PASS",
-        "result": "2 OCR page(s), all ≥ 60% confidence",
+        "result": "1 OCR page(s), all ≥ 60% confidence",
         "rule": "OCR confidence per page must be ≥ 60%.",
         "on_fail": "Warning listing low-quality pages; expect more review items."
       },
@@ -131,7 +136,7 @@
         "group": "Structure",
         "check": "Page order",
         "status": "PASS",
-        "result": "Checked via date continuity across 1 page change(s) — no page numbers in the file",
+        "result": "Checked via single page — nothing to order",
         "rule": "“Page X of Y” footers per file; if absent, dates must not run backwards between pages.",
         "on_fail": "Run stops: “Pages appear jumbled” or “Page(s) missing … (missing 3, 4)”."
       },
@@ -157,8 +162,8 @@
         "id": 13,
         "group": "Structure",
         "check": "Statement covers the full stated period",
-        "status": "PASS",
-        "result": "Data spans the stated period",
+        "status": "WARNING",
+        "result": "50200011223344: data 01/01/2025–17/01/2025 vs stated 01/01/2025–31/01/2025",
         "rule": "Data starts / ends within 10 days of the stated period.",
         "on_fail": "Warning: missing weeks can hide income or EMIs."
       },
@@ -167,7 +172,7 @@
         "group": "Integrity",
         "check": "Running balance arithmetic (every row)",
         "status": "PASS",
-        "result": "All 32 rows reconcile",
+        "result": "All 18 rows reconcile",
         "rule": "Previous balance ± amount must equal the printed balance on every row.",
         "on_fail": "FAILED; decision forced to REFER (possible tampering)."
       },
@@ -221,7 +226,7 @@
         "group": "Completeness",
         "check": "Enough history to score",
         "status": "WARNING",
-        "result": "1 month(s), 32 transactions — at least 3 months recommended",
+        "result": "1 month(s), 18 transactions — at least 3 months recommended — very few transactions",
         "rule": "At least 3 months and 20 transactions.",
         "on_fail": "Warning: score is less reliable."
       },
@@ -252,7 +257,8 @@
       "value_date": "2025-01-01",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "NEFT CR-HDFC0000240-BRIGHTWAVE SOLUTIONS PVT LTD-SALARY JAN 2025:N012500113",
+      "narration": "NEFT CR-HDFC0000240-BRIGHTWAVE SOLUTIONS PVT LTD-SALARY JAN 2025:-N012500113",
+      "extracted_by": "RULE",
       "debit": null,
       "credit": 96500,
       "balance": 154920,
@@ -291,7 +297,8 @@
       "value_date": "2025-01-02",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-RAJIV MALHOTRA-rajiv.m@okhdicbank-HDFC0001234-501234567890-RENT JAN",
+      "narration": "UPI-RAJIV MALHOTRA-rajiv.m@okhdfcbank-HDFC0001234-501234567890-RENT JAN",
+      "extracted_by": "RULE",
       "debit": 22000,
       "credit": null,
       "balance": 132920,
@@ -303,7 +310,7 @@
       "counterparty_format": "UPI · HDFC style",
       "channel": "UPI",
       "attributes": {
-        "vpa": "rajiv.m@okhdicbank",
+        "vpa": "rajiv.m@okhdfcbank",
         "ifsc": "HDFC0001234",
         "cpty_bank": "HDFC Bank",
         "rrn": "501234567890"
@@ -332,6 +339,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "ACH D- TATA CAPITAL LTD-TCL0098812345",
+      "extracted_by": "RULE",
       "debit": 11850,
       "credit": null,
       "balance": 121070,
@@ -366,7 +374,8 @@
       "value_date": "2025-01-04",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-BLINKIT-blinkit@hdicbank-HDFC0000001-501234567891-UP!",
+      "narration": "UPI-BLINKIT-blinkit@hdfcbank-HDFC0000001-501234567891-UPI",
+      "extracted_by": "RULE",
       "debit": 1245.5,
       "credit": null,
       "balance": 119824.5,
@@ -378,7 +387,7 @@
       "counterparty_format": "UPI · HDFC style",
       "channel": "UPI",
       "attributes": {
-        "vpa": "blinkit@hdicbank",
+        "vpa": "blinkit@hdfcbank",
         "ifsc": "HDFC0000001",
         "cpty_bank": "HDFC Bank",
         "rrn": "501234567891"
@@ -406,7 +415,8 @@
       "value_date": "2025-01-05",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "POS 416021XXXXXX4521 DMART AVENUE SUPERMARTS",
+      "narration": "POS 416021 XXXXXX4521 DMART AVENUE SUPERMARTS",
+      "extracted_by": "RULE",
       "debit": 3420,
       "credit": null,
       "balance": 116404.5,
@@ -415,7 +425,7 @@
       "original_amount": null,
       "counterparty": "DMART",
       "counterparty_confidence": 0.9,
-      "counterparty_format": "Card · HDFC POS · merchant alias",
+      "counterparty_format": "Guess from words · merchant alias",
       "channel": "CARD",
       "attributes": {
         "printed_as": "DMART AVENUE SUPERMARTS"
@@ -443,7 +453,8 @@
       "value_date": "2025-01-05",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "BIL/ONL/000412345/BESCOMAAN2S",
+      "narration": "BIL/ONL/000412345/BESCOM/JAN25",
+      "extracted_by": "RULE",
       "debit": 1860,
       "credit": null,
       "balance": 114544.5,
@@ -451,12 +462,10 @@
       "original_currency": null,
       "original_amount": null,
       "counterparty": "BESCOM",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bill pay · ICICI BIL · merchant alias",
+      "counterparty_confidence": 0.88,
+      "counterparty_format": "Bill pay · ICICI BIL",
       "channel": "BBPS",
-      "attributes": {
-        "printed_as": "BESCOMAAN2S"
-      },
+      "attributes": {},
       "level1": "DEBIT",
       "level2": "UTILITY",
       "category_group": "essential",
@@ -480,7 +489,8 @@
       "value_date": "2025-01-06",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPI-SWIGGY-swiggy@icici-ICICODC0099-501234567892-UP!",
+      "narration": "UPI-SWIGGY-swiggy@icici-ICICODC0099-501234567892-UP|",
+      "extracted_by": "RULE",
       "debit": 486,
       "credit": null,
       "balance": 114058.5,
@@ -518,7 +528,8 @@
       "value_date": "2025-01-07",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "NWD:-416021XXXXXX4521-51AN0123-BENGALURU",
+      "narration": "NWD-416021XXXXXX4521-S1AN0123-BENGALURU",
+      "extracted_by": "RULE",
       "debit": 3000,
       "credit": null,
       "balance": 111058.5,
@@ -531,20 +542,18 @@
       "channel": "ATM",
       "attributes": {},
       "level1": "DEBIT",
-      "level2": "OTHER_DEBIT",
+      "level2": "CASH_WITHDRAWAL",
       "category_group": "discretionary",
       "essential": "discretionary",
       "fixed_or_variable": "variable",
-      "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"NWD-\"",
       "review": {
         "flagged": false,
-        "reasons": [
-          "Low classification confidence (35%)"
-        ],
-        "impact": "LOW",
-        "auto_accepted_low_impact": true
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
       },
       "source_page": 1,
       "batch": 1
@@ -555,7 +564,8 @@
       "value_date": "2025-01-08",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "TO TRANSFER-UPI/DR/501234567893/MEERA IYER/SBIN/meera@oksbi/UPI--",
+      "narration": "TO TRANSFER-UPI/DR/501234567893/MEERA IYER/SBIN/meera@oksbi/UP!--",
+      "extracted_by": "RULE",
       "debit": 1500,
       "credit": null,
       "balance": 109558.5,
@@ -593,7 +603,8 @@
       "value_date": "2025-01-09",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPUP2M/501234567894/AIRTEL PAYMENTS/Recharge/AXIS",
+      "narration": "UPI/P2M/501234567894/AIRTEL PAYMENTS/Recharge/AXIS",
+      "extracted_by": "RULE",
       "debit": 599,
       "credit": null,
       "balance": 108959.5,
@@ -601,10 +612,11 @@
       "original_currency": null,
       "original_amount": null,
       "counterparty": "AIRTEL",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Guess from words · merchant alias",
-      "channel": "OTHER",
+      "counterparty_confidence": 0.93,
+      "counterparty_format": "UPI · Axis style · merchant alias",
+      "channel": "UPI",
       "attributes": {
+        "rrn": "501234567894",
         "printed_as": "AIRTEL PAYMENTS"
       },
       "level1": "DEBIT",
@@ -631,6 +643,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "IMPS-501234567895-KARTIK RAO-KKBK-XXXXXXXX7712-DINNER SHARE",
+      "extracted_by": "RULE",
       "debit": null,
       "credit": 1200,
       "balance": 110159.5,
@@ -668,6 +681,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "ACH D- ICICI PRU LIFE INSURANCE-POLICY 77812",
+      "extracted_by": "RULE",
       "debit": 4250,
       "credit": null,
       "balance": 105909.5,
@@ -703,6 +717,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "UPI-ZEPTO-zepto@ybl-YESBOYBLUPI-501234567896-UPI",
+      "extracted_by": "RULE",
       "debit": 892,
       "credit": null,
       "balance": 105017.5,
@@ -741,6 +756,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "NEFT DR-SBIN0004567-GREENFIELD SCHOOL TRUST-Tuition fee Q4-N013500777",
+      "extracted_by": "RULE",
       "debit": 18500,
       "credit": null,
       "balance": 86517.5,
@@ -780,6 +796,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "UPI-UBER INDIA-uber@axisbank-UTIB0000001-501234567897-RIDE",
+      "extracted_by": "RULE",
       "debit": 342,
       "credit": null,
       "balance": 86175.5,
@@ -821,6 +838,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "ACH D- ZERODHA BROKING-SIP 2211",
+      "extracted_by": "RULE",
       "debit": 5000,
       "credit": null,
       "balance": 81175.5,
@@ -858,6 +876,7 @@
       "account_number": "50200011223344",
       "month": "2025-01",
       "narration": "UPI-AMAZON PAY INDIA PRIVA-amazonpay@apl-UTIB0000002-501234567898-ORDER",
+      "extracted_by": "RULE",
       "debit": 2799,
       "credit": null,
       "balance": 78376.5,
@@ -898,7 +917,8 @@
       "value_date": "2025-01-17",
       "account_number": "50200011223344",
       "month": "2025-01",
-      "narration": "UPIREFUND/AMAZON PAY INDIA/Order 405-112 return",
+      "narration": "UPI/REFUND/AMAZON PAY INDIA/Order 405-112 return",
+      "extracted_by": "RULE",
       "debit": null,
       "credit": 899,
       "balance": 79275.5,
@@ -906,9 +926,9 @@
       "original_currency": null,
       "original_amount": null,
       "counterparty": "AMAZON",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Guess from words · merchant alias",
-      "channel": "OTHER",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash · merchant alias",
+      "channel": "UPI",
       "attributes": {
         "printed_as": "AMAZON PAY INDIA"
       },
@@ -928,538 +948,6 @@
       },
       "source_page": 1,
       "batch": 1
-    },
-    {
-      "id": "t18",
-      "date": "2025-01-18",
-      "value_date": "2025-01-18",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "POS 416021 XXXXXX4521 HPCL FUEL STATION",
-      "debit": 2500,
-      "credit": null,
-      "balance": 76775.5,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "HPCL FUEL STATION",
-      "counterparty_confidence": 0.5,
-      "counterparty_format": "Guess from words",
-      "channel": "CARD",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "FUEL",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.82,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"FUEL\"",
-      "review": {
-        "flagged": false,
-        "reasons": [
-          "Counterparty unclear (50%)"
-        ],
-        "impact": "LOW",
-        "auto_accepted_low_impact": true
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t19",
-      "date": "2025-01-19",
-      "value_date": "2025-01-19",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "UPI-APOLLO PHARMACY -apollo@icici-ICIC0000003-501234567899-MEDICINE",
-      "debit": 735,
-      "credit": null,
-      "balance": 76040.5,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "APOLLO PHARMACY",
-      "counterparty_confidence": 0.94,
-      "counterparty_format": "UPI · HDFC style",
-      "channel": "UPI",
-      "attributes": {
-        "vpa": "apollo@icici",
-        "ifsc": "ICIC0000003",
-        "cpty_bank": "ICICI Bank",
-        "rrn": "501234567899"
-      },
-      "level1": "DEBIT",
-      "level2": "HEALTHCARE",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"PHARMACY\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t20",
-      "date": "2025-01-20",
-      "value_date": "2025-01-20",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "UPI-SHARMA PROVISION STORE-q7xk2@ybl-YESBOYBLUPI-501234567900-",
-      "debit": 640,
-      "credit": null,
-      "balance": 75400.5,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "SHARMA PROVISION STORE",
-      "counterparty_confidence": 0.94,
-      "counterparty_format": "UPI · HDFC style",
-      "channel": "UPI",
-      "attributes": {
-        "vpa": "q7xk2@ybl",
-        "rrn": "501234567900"
-      },
-      "level1": "DEBIT",
-      "level2": "GROCERY",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"PROVISION\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t21",
-      "date": "2025-01-21",
-      "value_date": "2025-01-21",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "BIL/ONL/000412377/ACT FIBERNET/JAN25",
-      "debit": 1180,
-      "credit": null,
-      "balance": 74220.5,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "ACT FIBERNET",
-      "counterparty_confidence": 0.88,
-      "counterparty_format": "Bill pay · ICICI BIL",
-      "channel": "BBPS",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "UTILITY",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"FIBERNET\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t22",
-      "date": "2025-01-22",
-      "value_date": "2025-01-22",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "UPI-NETFLIX-netflix@hdfcbank-HDFC0000004-501234567901-SUBSCRIPTION",
-      "debit": 649,
-      "credit": null,
-      "balance": 73571.5,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "NETFLIX",
-      "counterparty_confidence": 0.94,
-      "counterparty_format": "UPI · HDFC style",
-      "channel": "UPI",
-      "attributes": {
-        "vpa": "netflix@hdfcbank",
-        "ifsc": "HDFC0000004",
-        "cpty_bank": "HDFC Bank",
-        "rrn": "501234567901"
-      },
-      "level1": "DEBIT",
-      "level2": "ENTERTAINMENT",
-      "category_group": "discretionary",
-      "essential": "discretionary",
-      "fixed_or_variable": "fixed",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"SUBSCRIPTION\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t23",
-      "date": "2025-01-23",
-      "value_date": "2025-01-23",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "IMPS-501234567902-ANANYA SINGH-HDFC-XXXXXXXX3390-TRIP",
-      "debit": 4500,
-      "credit": null,
-      "balance": 69071.5,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "ANANYA SINGH",
-      "counterparty_confidence": 0.92,
-      "counterparty_format": "IMPS · HDFC style",
-      "channel": "IMPS",
-      "attributes": {
-        "rrn": "501234567902"
-      },
-      "level1": "DEBIT",
-      "level2": "P2P",
-      "category_group": "discretionary",
-      "essential": "discretionary",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.84,
-      "method": "RULE",
-      "method_reason": "Transfer with an individual",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t24",
-      "date": "2025-01-24",
-      "value_date": "2025-01-24",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "UPI-BLINKIT-blinkit@hdfcbank-HDFC0000001-501234567903-UPI",
-      "debit": 1532.4,
-      "credit": null,
-      "balance": 67539.1,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "BLINKIT",
-      "counterparty_confidence": 0.94,
-      "counterparty_format": "UPI · HDFC style",
-      "channel": "UPI",
-      "attributes": {
-        "vpa": "blinkit@hdfcbank",
-        "ifsc": "HDFC0000001",
-        "cpty_bank": "HDFC Bank",
-        "rrn": "501234567903"
-      },
-      "level1": "DEBIT",
-      "level2": "GROCERY",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"BLINKIT\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t25",
-      "date": "2025-01-25",
-      "value_date": "2025-01-25",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "CC PAYMENT/MERIDIAN CARD XX9921/AUTOPAY",
-      "debit": 14320,
-      "credit": null,
-      "balance": 53219.1,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "Own card account",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Card bill",
-      "channel": "INTERNAL",
-      "attributes": {
-        "card": "••9921"
-      },
-      "level1": "DEBIT",
-      "level2": "CC_PAYMENT",
-      "category_group": "transfer",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.96,
-      "method": "RULE",
-      "method_reason": "Card bill payment between own accounts",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t26",
-      "date": "2025-01-26",
-      "value_date": "2025-01-26",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "UPI-ZOMATO-zomato@kotak-KKBK0000005-501234567904-UPI",
-      "debit": 612,
-      "credit": null,
-      "balance": 52607.1,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "ZOMATO",
-      "counterparty_confidence": 0.94,
-      "counterparty_format": "UPI · HDFC style",
-      "channel": "UPI",
-      "attributes": {
-        "vpa": "zomato@kotak",
-        "ifsc": "KKBK0000005",
-        "cpty_bank": "Kotak Mahindra Bank",
-        "rrn": "501234567904"
-      },
-      "level1": "DEBIT",
-      "level2": "DINING",
-      "category_group": "discretionary",
-      "essential": "discretionary",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"ZOMATO\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t27",
-      "date": "2025-01-27",
-      "value_date": "2025-01-27",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "NEFT CR-ICIC0000104-STRIPE PAYMENTS INDIA-PAYOUT po_1QJ",
-      "debit": null,
-      "credit": 12400,
-      "balance": 65007.1,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "STRIPE PAYMENTS INDIA",
-      "counterparty_confidence": 0.93,
-      "counterparty_format": "NEFT/RTGS · hyphen",
-      "channel": "NEFT",
-      "attributes": {
-        "platform": "Stripe",
-        "ifsc": "ICIC0000104",
-        "cpty_bank": "ICICI Bank"
-      },
-      "level1": "CREDIT",
-      "level2": "BUSINESS_INCOME",
-      "category_group": "income",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.82,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"STRIPE\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t28",
-      "date": "2025-01-28",
-      "value_date": "2025-01-28",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "TRF/0099123/MISC",
-      "debit": 1000,
-      "credit": null,
-      "balance": 64007.1,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "UNIDENTIFIED",
-      "counterparty_confidence": 0.15,
-      "counterparty_format": "No pattern",
-      "channel": "TRANSFER",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "OTHER_DEBIT",
-      "category_group": "discretionary",
-      "essential": "discretionary",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.35,
-      "method": "LLM",
-      "method_reason": "No confident category",
-      "review": {
-        "flagged": true,
-        "reasons": [
-          "Counterparty unclear (15%)",
-          "Low classification confidence (35%)"
-        ],
-        "impact": "HIGH",
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t29",
-      "date": "2025-01-29",
-      "value_date": "2025-01-29",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "SMS ALERT CHGS QTR INCL GST",
-      "debit": 17.7,
-      "credit": null,
-      "balance": 63989.4,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "MERIDIAN BANK",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bank-generated",
-      "channel": "INTERNAL",
-      "attributes": {},
-      "level1": "DEBIT",
-      "level2": "BANK_CHARGES",
-      "category_group": "fees",
-      "essential": null,
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"CHGS\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t30",
-      "date": "2025-01-30",
-      "value_date": "2025-01-30",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "UPI-DMART READY-dmart@icici-ICIC0000006-501234567905-UP|",
-      "debit": 2210,
-      "credit": null,
-      "balance": 61779.4,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "DMART",
-      "counterparty_confidence": 0.94,
-      "counterparty_format": "UPI · HDFC style · merchant alias",
-      "channel": "UPI",
-      "attributes": {
-        "vpa": "dmart@icici",
-        "ifsc": "ICIC0000006",
-        "cpty_bank": "ICICI Bank",
-        "rrn": "501234567905",
-        "printed_as": "DMART READY"
-      },
-      "level1": "DEBIT",
-      "level2": "GROCERY",
-      "category_group": "essential",
-      "essential": "essential",
-      "fixed_or_variable": "variable",
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"MART\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
-    },
-    {
-      "id": "t31",
-      "date": "2025-01-31",
-      "value_date": "2025-01-31",
-      "account_number": "50200011223344",
-      "month": "2025-01",
-      "narration": "CREDIT INTEREST CAPITALISED",
-      "debit": null,
-      "credit": 312,
-      "balance": 62091.4,
-      "currency": "INR",
-      "original_currency": null,
-      "original_amount": null,
-      "counterparty": "MERIDIAN BANK",
-      "counterparty_confidence": 0.9,
-      "counterparty_format": "Bank-generated",
-      "channel": "INTERNAL",
-      "attributes": {},
-      "level1": "CREDIT",
-      "level2": "INTEREST",
-      "category_group": "income",
-      "essential": null,
-      "fixed_or_variable": null,
-      "classification_confidence": 0.9,
-      "method": "RULE",
-      "method_reason": "Narration keyword \"CREDIT INTEREST\"",
-      "review": {
-        "flagged": false,
-        "reasons": [],
-        "impact": null,
-        "auto_accepted_low_impact": false
-      },
-      "source_page": 2,
-      "batch": 1
     }
   ],
   "credit_risk_summary": {
@@ -1469,21 +957,21 @@
       "to_month": "2025-01",
       "months": 1
     },
-    "composite_score": 966,
+    "composite_score": 959,
     "scale": "0-1000",
     "rating_band": "Excellent",
     "decision": "APPROVE",
     "decision_reasons": [
       "Band \"Excellent\" maps to APPROVE under the default policy"
     ],
-    "provisional": true,
-    "pending_review_items": 1,
+    "provisional": false,
+    "pending_review_items": 0,
     "components": [
       {
         "component": "Income Stability",
         "weight_pct": 25,
-        "score_0_100": 96,
-        "points": 240
+        "score_0_100": 87.3,
+        "points": 218
       },
       {
         "component": "Debt Service",
@@ -1494,13 +982,13 @@
       {
         "component": "Liquidity",
         "weight_pct": 15,
-        "score_0_100": 90,
-        "points": 135
+        "score_0_100": 100,
+        "points": 150
       },
       {
         "component": "Banking Behaviour",
         "weight_pct": 10,
-        "score_0_100": 99.9,
+        "score_0_100": 100,
         "points": 100
       },
       {
@@ -1518,11 +1006,11 @@
     ],
     "metrics": {
       "income_stability": {
-        "avg_monthly_income": 109212,
+        "avg_monthly_income": 96500,
         "monthly_income": [
           {
             "month": "2025-01",
-            "total": 109212
+            "total": 96500
           }
         ],
         "income_by_category": [
@@ -1534,29 +1022,11 @@
                 "amount": 96500
               }
             ]
-          },
-          {
-            "category": "BUSINESS_INCOME",
-            "by_month": [
-              {
-                "month": "2025-01",
-                "amount": 12400
-              }
-            ]
-          },
-          {
-            "category": "INTEREST",
-            "by_month": [
-              {
-                "month": "2025-01",
-                "amount": 312
-              }
-            ]
           }
         ],
         "regularity_cv_pct": 0,
-        "source_count": 3,
-        "primary_source_share_pct": 88.4,
+        "source_count": 1,
+        "primary_source_share_pct": 100,
         "growth_first_to_last_pct": 0
       },
       "debt_service": {
@@ -1570,21 +1040,21 @@
           }
         ],
         "monthly_emi_total": 11850,
-        "foir_pct": 10.9,
+        "foir_pct": 12.3,
         "emi_bounce_rate_pct": 0,
         "on_time_payment_rate_pct": 100
       },
       "liquidity": {
-        "avg_eod_balance": 88865.83,
-        "min_eod_balance": 52607.1,
+        "avg_eod_balance": 107030.65,
+        "min_eod_balance": 78376.5,
         "negative_balance_days": 0,
-        "days_observed": 31
+        "days_observed": 17
       },
       "banking_behaviour": {
         "bounces": 0,
         "bounce_charges": [],
         "penalty_fees": [],
-        "total_fees_and_charges": 17.7,
+        "total_fees_and_charges": 0,
         "overdraft_days": 0
       },
       "fraud_indicators": {
@@ -1597,18 +1067,18 @@
         "monthly_spend": [
           {
             "month": "2025-01",
-            "total": 76469.6,
-            "essential": 61563.9,
-            "discretionary": 14905.7,
-            "fixed": 49038
+            "total": 60893.5,
+            "essential": 52766.5,
+            "discretionary": 8127,
+            "fixed": 47209
           }
         ],
-        "essential_share_pct": 80.5,
-        "discretionary_share_pct": 19.5,
-        "fixed_share_pct": 64.1,
-        "variable_share_pct": 35.9,
+        "essential_share_pct": 86.7,
+        "discretionary_share_pct": 13.3,
+        "fixed_share_pct": 77.5,
+        "variable_share_pct": 22.5,
         "spend_trend_first_to_last_pct": 0,
-        "savings_rate_after_emi_pct": 19.1
+        "savings_rate_after_emi_pct": 24.6
       }
     }
   }

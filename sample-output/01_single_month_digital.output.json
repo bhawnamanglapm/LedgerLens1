@@ -1,6 +1,6 @@
 {
   "schema": "ledgerlens.bsa.v1",
-  "generated_at": "2026-10-02T20:22:19.976Z",
+  "generated_at": "2026-10-02T20:55:06.633Z",
   "run": {
     "id": 1,
     "source": "01_single_month_digital.pdf",
@@ -1375,13 +1375,13 @@
       "method": "LLM",
       "method_reason": "No confident category (keyword stand-in — LLM off)",
       "review": {
-        "flagged": false,
+        "flagged": true,
         "reasons": [
           "Counterparty unclear (15%)",
           "Low classification confidence (35%)"
         ],
-        "impact": "LOW",
-        "auto_accepted_low_impact": true
+        "impact": "HIGH",
+        "auto_accepted_low_impact": false
       },
       "source_page": 2,
       "batch": 1
@@ -1515,8 +1515,8 @@
     "decision_reasons": [
       "Band \"Excellent\" maps to APPROVE under the default policy"
     ],
-    "provisional": false,
-    "pending_review_items": 0,
+    "provisional": true,
+    "pending_review_items": 1,
     "components": [
       {
         "component": "Income Stability",

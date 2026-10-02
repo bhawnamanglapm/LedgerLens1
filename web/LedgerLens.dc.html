@@ -1999,6 +1999,7 @@ class Component extends DCLogic {
       if (ms.size >= 2 && peers.some((x) => x !== t && Math.abs(x.amount - t.amount) <= t.amount * 0.15) && t.amount >= 1000) imp.push('recurring every month — could be EMI, rent or salary');
       if (/LOAN|EMI|FINANCE|FINSERV|CREDIT|NBFC|CAPITAL/i.test(t.narr) && t.l1 === 'DEBIT') imp.push('looks loan-related');
       if (/\bRTN\b|BOUNCE|PENAL|DISHON|RETURN CH|CHQ RETURN|ACH RETURN|INSUFFICIENT/i.test(t.narr)) imp.push('possible bounce or penalty');
+      if (/^UNIDENTIFIED$|\(not printed\)/i.test(t.cp || '')) imp.push('counterparty missing — it is mandatory, so a person must name it');
       const high = imp.length > 0;
       if (s.reviewMode !== 'all' && !high) return { ...t, flagged: false, autoAccepted: true, impact: 'LOW', impactS: 'Low impact: ' + this.fmt0(t.amount) + ' one-off', autoReasons: t.reasons };
       return { ...t, impact: high ? 'HIGH' : 'LOW', impactS: high ? imp.join(' · ') : 'Low impact', impactList: imp };
