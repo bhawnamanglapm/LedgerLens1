@@ -45,7 +45,7 @@ Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped 
 
 ### Tests
 ```bash
-cd app && npm test        # 76 checks, offline, ~1 min — no API key needed
+cd app && npm test        # 81 checks, offline, ~1 min — no API key needed
 ```
 GitHub Actions runs the same tests on every push (`.github/workflows/test.yml`).
 
@@ -176,9 +176,10 @@ All test statements are **synthetic** (generated with ReportLab / Pillow by the 
 | `03b_scanned_statement.pdf` | Image-only (scanned) PDF → render → OCR | 2 / 1 / 32 | **966 · Excellent · APPROVE** (web) | 1 | 20 / 1 / 0 / 1 |
 | `04_csv_export_jan2025.csv` | Bank CSV export with header rows, quoted amounts | 1 / 1 / 32 | **966 · Excellent · APPROVE** | 1 | 15 / 1 / 0 / 6 |
 | `05_remittances_feb2025.csv` | Inward and outward foreign remittances (SWIFT, INW REMIT, FIRC, outward TT, LRS tuition) + an insurance premium | 1 / 1 / 9 | **937 · Excellent · APPROVE** | 0 | 15 / 1 / 0 / 6 |
+| `06_password_protected.pdf` | Same statement as 01, encrypted — password **`ledger2025`** | 2 / 1 / 32 | No password → asks for it (CLI exit 2) · wrong → "Wrong password" · right → **966 · APPROVE** | 1 | 18 / 1 / 0 / 3 |
 | built-in `jumbled` sample | Pages 4 and 5 swapped | — | **Stops:** "Pages appear jumbled: position 4 carries Page 5 of 12" | — | — |
 
-### Automated tests (`npm test`, 76 checks)
+### Automated tests (`npm test`, 81 checks)
 | Group | What is checked |
 |---|---|
 | LLM guardrails (10 unit tests) | correct answer accepted · misread amount caught by the balance check · both debit and credit rejected · bad date rejected · unknown account rejected · missing account inherited · row from another page rejected · malformed response rejected · category not allowed for the direction rejected · model confidence capped |
@@ -188,6 +189,7 @@ All test statements are **synthetic** (generated with ReportLab / Pillow by the 
 | Page order | jumbled sample stops with exit code 3 |
 | Classification | every row has level 1, a level-2 code from the taxonomy, a confidence and a method · rules-only runs label no row LLM · P2P receipts are P2P, refunds are REFUND (credit_others), "Tuition fee" → EDUCATION · rows under the 70% threshold are flagged · remittances (SWIFT, INW REMIT, FIRC, outward TT) → REMITTANCE with the sender / payee as counterparty · keywords must start a word ("EMI" does not match inside REMITTANCE or PREMIUM) · `taxonomy-example.csv` adds and overrides categories · a reviewer's choice is MANUAL · with the (mock) LLM on, unclear rows come back labelled LLM |
 | Credit risk scoring | six components with weights 25/20/15/10/15/15 add up to the composite · every metric in the brief is reported · generated customers reach every decision: clean salaried → APPROVE, one EMI bounce → APPROVE WITH CONDITIONS, FOIR > 65% → DECLINE, no verifiable income → DECLINE, one edited balance → REFER (tampering) |
+| Data validation & errors | empty file, unsupported type (.docx) and a truncated PDF stop with a clear message · password-protected PDF: missing / wrong / right password · the same statement uploaded twice is de-duplicated and still scores 966 |
 | Cheques, foreign currency, long statements | a row with no counterparty goes to the Review queue even when small · 5 cheque narration formats give channel CHEQUE, the payee and the cheque number · every row's `currency` is the currency its amounts are in, and foreign card spends keep `original_currency` / `original_amount` · a generated 102-page statement runs as 34 batches with 0 fallbacks and every page inherits the account |
 
 The mock is a **test double, not a model**: it answers in the exact tool format so plumbing and guardrails are tested offline. The real API path was also checked against a local fake of the Messages API (headers, forced tool, temperature 0, 529 retry, tool_use parsing).
@@ -218,6 +220,8 @@ Sample outputs (transactions + credit risk summary + validation) are in `sample-
 | Circular transactions | Credit and debit of ≈ same amount (±2%) with the same counterparty within 3 days | Round-tripping pattern |
 | Structuring | ≥ 3 cash deposits of ₹40–50k within 30 days | Just under the ₹50k PAN-reporting threshold |
 | Expenses | EMIs, investments, own transfers and card bill payments excluded from spend | Avoids double counting and keeps debt separate |
+| Foreign currency | Amounts are in the account's currency; a foreign card spend or remittance keeps the printed foreign amount in `original_currency` / `original_amount` | Statements show the converted INR amount that moved the balance |
+| Overlapping uploads | The same row (account, date, narration, amounts, balance) in two files is one transaction; each file's first page restarts the running balance at its own opening balance | Customers often send overlapping or repeated statements |
 | Joint / card accounts | Belong to the same customer; card balance = outstanding (debit increases it) | Typical multi-account upload |
 | Review threshold | 70% default, adjustable; smart review on by default | Balance between accuracy and reviewer effort |
 | Score weights | As given in the brief; component formulas and cut-offs are illustrative and should be calibrated on historical defaults | No outcome data in a PoC |
@@ -229,7 +233,7 @@ Sample outputs (transactions + credit risk summary + validation) are in `sample-
 1. **LLM accuracy not yet measured on real statements.** The integration is real and tested end to end with a mock and a fake API, but this package was not run against the live model with real bank statements; accuracy, cost and latency should be measured on a labelled set before production. The hosted claude.ai page runs rules only (no backend there).
 2. **Narration formats.** Built from public explainers and common patterns; banks vary by core system. Unknown formats fall to review and can be taught via counterparty rules (stored per browser).
 3. **OCR.** English only; quality drops on blurred, skewed or low-resolution scans. Integrity checks catch digit errors but cannot fix them.
-4. **Cheques** rarely print the counterparty; these stay at 55% confidence.
+4. **Cheques** often don't print the payee. When it is printed after the cheque number (`CHQ PAID-000451-NAME`, `TO CLG CHQ NO … NAME`, `BY CLG/…/NAME`) it is read; otherwise the row gets *Cheque counterparty (not printed)* at 55% and always goes to the Review queue.
 5. **No external data:** no MCC codes for card merchants, no UPI-ID name lookup, IFSC resolves to bank (not branch), no bureau cross-check of EMIs.
 6. **Persistence:** rules, activity log and run history are kept in the browser's local storage only; the backend is a stateless LLM proxy (no database, no multi-user review yet).
 7. **Scoring** is rules-based and uncalibrated (see Assumptions).

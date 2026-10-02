@@ -167,6 +167,25 @@ function runCli(file, env, extra) {
   sc = await scen('tamper', M3(() => [SAL, [3, 'ACH D-HOMEFIN LTD-LN0045821936-EMI', 'D', 30000], GRO, PWR]), true);
   ok(sc.decision === 'REFER' && sc.integrity.length >= 1 && sc.why.some((w) => /tampering/.test(w)), 'one edited balance → arithmetic check fails → REFER (possible tampering)');
 
+  console.log('\n8 · data validation & error handling');
+  const tmpd = fs.mkdtempSync(path.join(os.tmpdir(), 'll_bad_'));
+  const cliRun = (files, extra) => { const out = path.join(tmpd, 'o.json'); let code = 0, err = '';
+    try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js')].concat(files, ['-o', out], extra || []), { env: { ...process.env, LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' }, stdio: ['ignore', 'ignore', 'pipe'], timeout: 120000 }); }
+    catch (e) { code = e.status; err = String(e.stderr || ''); }
+    return { code, err, j: code === 0 ? JSON.parse(fs.readFileSync(out, 'utf8')) : null }; };
+  fs.writeFileSync(path.join(tmpd, 'empty.pdf'), ''); fs.writeFileSync(path.join(tmpd, 'notes.docx'), 'not a statement');
+  fs.writeFileSync(path.join(tmpd, 'broken.pdf'), fs.readFileSync(path.join(TS, '01_single_month_digital.pdf')).slice(0, 3000));
+  let v = cliRun([path.join(tmpd, 'empty.pdf')]); ok(v.code === 3 && /empty file/.test(v.err), 'empty file → stops: "' + (v.err.match(/is an empty file/) || [''])[0] + '"');
+  v = cliRun([path.join(tmpd, 'notes.docx')]); ok(v.code === 3 && /not a supported file type/.test(v.err), 'unsupported file type (.docx) → stops with "not a supported file type"');
+  v = cliRun([path.join(tmpd, 'broken.pdf')]); ok(v.code === 3 && /Could not read file/.test(v.err), 'corrupt / truncated PDF → stops with "Could not read file"');
+  const locked = path.join(TS, '06_password_protected.pdf');
+  v = cliRun([locked]); const v2 = cliRun([locked], ['--password', 'wrong']); const v3 = cliRun([locked], ['--password', 'ledger2025']);
+  ok(v.code === 2 && /password-protected/.test(v.err) && v2.code === 2 && /Wrong password/.test(v2.err) && v3.code === 0 && v3.j.transactions.length === 32 && v3.j.credit_risk_summary.composite_score === 966, 'password-protected PDF: no password → asks · wrong → "Wrong password" · right → 32 txns · 966');
+  fs.copyFileSync(path.join(TS, '01_single_month_digital.pdf'), path.join(tmpd, 'same_statement_again.pdf'));
+  v = cliRun([path.join(TS, '01_single_month_digital.pdf'), path.join(tmpd, 'same_statement_again.pdf')]);
+  ok(v.code === 0 && v.j.transactions.length === 32 && v.j.credit_risk_summary.composite_score === 966 && v.j.data_validation.summary.failed === 0, 'same statement uploaded twice (overlap) → all 32 duplicates removed, still 966 · APPROVE, 0 failed checks');
+  fs.rmSync(tmpd, { recursive: true, force: true });
+
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
   process.exit(0);

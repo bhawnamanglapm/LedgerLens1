@@ -1439,11 +1439,15 @@ class Component extends DCLogic {
   extract(pages) {
     const batches = []; const accounts = {}; const raw = [];
     let ctx = {}; const BATCH = 3;
+    // the first page of each uploaded file restarts its account's running balance at the opening balance printed there
+    const pageOpen = {}; let prevFile = null;
     for (let b = 0; b * BATCH < pages.length; b++) {
       const bp = pages.slice(b * BATCH, b * BATCH + BATCH);
       const inherited = new Set(); const startCtx = { ...ctx }; let found = 0; const accs = new Set(); const noHead = [];
       for (const p of bp) {
         const meta = this.readMeta(p.text);
+        if ((p.file || null) !== prevFile && meta.account && meta.opening !== undefined && meta.opening !== null) pageOpen[p.index] = { account: meta.account, opening: meta.opening };
+        prevFile = p.file || null;
         if (meta.account && meta.account !== ctx.account) {
           const keep = { bank: ctx.bank, currency: ctx.currency };
           ctx = { ...meta };
@@ -1472,7 +1476,9 @@ class Component extends DCLogic {
     // resolve debit/credit for loose rows using running balance
     const prevBal = {};
     list.forEach((a) => { prevBal[a.key] = a.opening; });
+    let lastPage = null;
     raw.forEach((r) => {
+      if (r.page !== lastPage) { lastPage = r.page; const po = pageOpen[r.page]; if (po && po.account === r.account) prevBal[r.account] = po.opening; }
       const a = accounts[r.account]; const pb = prevBal[r.account];
       if (r.loose) {
         if (pb !== null && pb !== undefined && r.bal !== null) {
@@ -1483,7 +1489,7 @@ class Component extends DCLogic {
       }
       if (r.bal !== null && r.bal !== undefined) prevBal[r.account] = r.bal;
     });
-    return { batches, accounts: list, raw };
+    return { batches, accounts: list, raw, pageOpen };
   }
 
   // ---------- enrichment ----------
@@ -1584,7 +1590,7 @@ class Component extends DCLogic {
     const byLast4 = {}; ex.accounts.forEach((a) => { byLast4[a.last4] = a; });
     const pageAcc = {}; ex.accounts.forEach((a) => a.pages.forEach((pg) => { if (!pageAcc[pg]) pageAcc[pg] = a.key; }));
     (inp.accounts || []).forEach((h) => { const l4 = String(h.account_number || '').replace(/\D/g, '').slice(-4); if (byLast4[l4]) accFill[byLast4[l4].key] = h; });
-    let acc = curAcc; const bal = { ...prevBal };
+    let acc = curAcc; const bal = { ...prevBal }; const seenPg = new Set();
     inp.transactions.forEach((t, i) => {
       const where = 'row ' + (i + 1);
       const page = pageNos.indexOf(t.page) >= 0 ? t.page : null;
@@ -1604,7 +1610,8 @@ class Component extends DCLogic {
       if (!key) { errors.push(where + ': no account could be inherited'); return; }
       acc = key;
       const a = ex.accounts.find((x) => x.key === key);
-      // balance chain: previous balance ± amount must equal the printed balance
+      // balance chain: previous balance ± amount must equal the printed balance (restarting at a new file's opening balance)
+      if (!seenPg.has(page)) { seenPg.add(page); const po = ex.pageOpen && ex.pageOpen[page]; if (po && po.account === key) bal[key] = po.opening; }
       const pb = bal[key];
       if (b !== null && pb !== null && pb !== undefined) {
         const sign = a && a.card ? 1 : -1; const exp = dr ? pb + sign * dr : pb - sign * cr;
@@ -2380,6 +2387,7 @@ class Component extends DCLogic {
         seen.add(sig);
         if (f.size > 25 * 1024 * 1024) { fileVal.tooBig.push(f.name); this.log('ERROR', 'Validation', f.name + ' is ' + Math.round(f.size / 1048576) + ' MB — over the 25 MB limit'); this.setState({ busy: false, error: f.name + ' is larger than 25 MB. Split the statement or reduce scan resolution (300 dpi is enough) and upload again.' }); return; }
         if (!f.size) { this.log('ERROR', 'Validation', f.name + ' is empty (0 bytes)'); this.setState({ busy: false, error: f.name + ' is an empty file.' }); return; }
+        if (!/\.(pdf|png|jpe?g|webp|xlsx|xls|xlsm|csv|txt|md)$/i.test(f.name)) { this.log('ERROR', 'Validation', f.name + ' — unsupported file type'); this.setState({ busy: false, error: f.name + ' is not a supported file type. Upload a PDF, PNG / JPG image, Excel, CSV or text export of the statement.' }); return; }
         const before = pages.length;
         names.push(f.name); const nm = f.name.toLowerCase();
         if (/\.(png|jpe?g|webp)$/.test(nm)) {
