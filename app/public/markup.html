@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LedgerLens — Statement Underwriting PoC</title>
+<script src="./support.js"></script>
+<script src="/_blob/e7450d4a01f4982d04f09e647968f2c2"></script>
+<script src="/_blob/4a0f482804d6ee61720dc1a0e38619bd"></script>
+<script src="/_blob/38856ac12876fc133e6a5e7e2a3e65ac"></script>
+<script src="/_blob/293a34e08997121e4ecd7b38825d3e7e"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F2EE}
+a{color:#1F4FD1}a:hover{color:#16399A}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#4A4F58;padding:9px 10px;border-bottom:1px solid #C9C6BE;background:#ECEAE4;position:sticky;top:0;white-space:nowrap}
+.tbl td{padding:8px 10px;border-bottom:1px solid #E4E1DA;vertical-align:top}
+.num{text-align:right;font-family:'IBM Plex Mono',ui-monospace,monospace;white-space:nowrap}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+button,select,input{font-family:inherit}
+.side{min-width:0;max-width:100%}
+.side nav,.side ul{min-width:0;max-width:100%}
+main{min-width:0;box-sizing:border-box}
+main section,main section>*,main section>*>*{min-width:0}
+pre{max-width:100%;box-sizing:border-box}
+.tbl{min-width:0}
+@media (max-width:900px){
+main{padding:14px!important;gap:14px!important}
+.navList{max-width:100%;box-sizing:border-box}
+.side{position:sticky!important;top:0;z-index:20;flex-basis:100%!important}
+.sideIn{position:static!important;padding:10px 12px!important;gap:8px!important}
+.sideSub,.sideExtra{display:none!important}
+.navList{flex-direction:row!important;overflow-x:auto;gap:6px!important;padding-bottom:2px!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.navItem{flex:0 0 auto}
+.navList{-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent);padding-right:28px!important}
+.navItem button{white-space:nowrap;padding:10px 12px!important}
+}
+@media (max-width:640px){.stepText{flex:1 1 calc(100% - 60px)!important}.stepSt{margin-left:56px;flex:1 1 auto}}
+button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within{outline:2px solid #1F4FD1;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#F3F2EE;color:#16181D;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.45;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<aside class="side" style="flex:1 0 248px;background:#16181D;color:#FFFFFF">
+<div class="sideIn" style="position:sticky;top:0;padding:24px 16px;display:flex;flex-direction:column;gap:22px">
+<div style="display:flex;flex-direction:column;gap:4px;padding:0 8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:20px;letter-spacing:-.01em">LedgerLens</div>
+<div class="sideSub" style="font-size:12px;color:#B9BDC6">Statement → transactions → credit decision</div>
+</div>
+<nav aria-label="Workflow">
+<ul class="navList" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
+<li class="navItem" style="display:flex">
+<button type="button" onClick="{{t.go}}" aria-current="{{t.current}}" style="{{t.style}}; flex-grow:1; display:flex; align-items:center; gap:12px; text-align:left; border:0; padding:11px 12px; min-height:44px; border-radius:4px; font-size:13.5px; font-weight:600; cursor:pointer">
+<span class="mono" style="{{t.numStyle}}; font-size:11.5px">{{t.num}}</span>
+<span style="flex-grow:1">{{t.label}}</span>
+<span class="mono" style="font-size:11px;font-weight:600;color:#F0B27A">{{t.badge}}</span>
+</button>
+</li>
+</sc-for>
+</ul>
+</nav>
+</div>
+</aside>
+
+<div style="flex:999 1 640px;min-width:0">
+<main style="max-width:1400px;padding:24px;display:flex;flex-direction:column;gap:20px">
+<sc-if value="{{demoMode}}" hint-placeholder-val="{{false}}"><div role="note" style="border:1px solid #C9D4F2;background:#F2F5FD;color:#1B2B5C;border-radius:6px;padding:10px 16px;font-size:13px"><strong>Demo environment.</strong> Use the built-in samples or the synthetic test statements only — do not upload real bank statements. Model calls are rate-limited.</div></sc-if>
+
+<sc-if value="{{hasError}}" hint-placeholder-val="{{false}}">
+<div role="alert" style="border:1px solid #B42318;background:#FDF0EE;color:#7A1A12;padding:14px 18px;border-radius:4px;display:flex;flex-direction:column;gap:4px">
+<strong style="font-size:13px;letter-spacing:.04em">PIPELINE STOPPED</strong>
+<span>{{error}}</span>
+</div>
+</sc-if>
+
+<sc-if value="{{notHome}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{hasRunDone}}" hint-placeholder-val="{{false}}">
+<div role="status" style="{{bannerBox}}; border-radius:6px; padding:10px 16px; display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 320px">
+<span style="font-size:13.5px;line-height:1.4"><strong style="{{bannerTitleStyle}}">{{bannerTitle}}</strong> <span style="{{bannerText}}">· Run #{{runNo}} at {{runEnd}} · {{runResult}}</span></span>
+<sc-if value="{{hasReplaced}}" hint-placeholder-val="{{false}}"><span style="font-size:12px;color:#4A4F58">Previous data from Run #{{repNo}} was cleared and saved in the Activity log.</span></sc-if>
+</div>
+<sc-if value="{{runWarn}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{goReview}}" style="{{bannerBtn}}; border-radius:4px; padding:8px 14px; min-height:44px; font-weight:600; cursor:pointer">Open review queue</button></sc-if>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{hasRunBusy}}" hint-placeholder-val="{{false}}">
+<div role="status" style="border:1px solid #E6CD86;background:#FFF8E6;border-radius:6px;padding:12px 18px;display:flex;gap:10px;align-items:center;color:#5C4300">
+<strong>Processing Run #{{runNo}}…</strong><span class="mono" style="font-size:12px;word-break:break-word">{{runSrc}} · started {{runStart}}</span>
+</div>
+</sc-if>
+
+<sc-if value="{{notHome}}" hint-placeholder-val="{{true}}">
+<header style="display:flex;flex-direction:column;gap:4px">
+<h1 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em">{{pageTitle}}</h1>
+<p style="margin:0;color:#4A4F58;font-size:13.5px">{{pageSub}}</p>
+</header>
+</sc-if>
+
+<!-- ============ 00 HOME ============ -->
+<sc-if value="{{isHome}}" hint-placeholder-val="{{false}}">
+<section aria-labelledby="homeH" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;padding:32px;display:flex;flex-direction:column;gap:18px">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">BANK STATEMENT ANALYZER · PROOF OF CONCEPT</span>
+<div style="display:flex;flex-direction:column;gap:8px;max-width:760px">
+<h1 id="homeH" style="margin:0;font-size:32px;line-height:1.15;font-weight:600;letter-spacing:-.015em">From bank statement to credit decision, with every step checked.</h1>
+<p style="margin:0;font-size:15px;color:#30343B">LedgerLens reads a bank statement, sorts every transaction into a category and scores the applicant's credit risk out of 1000. It shows its work at each step, so a credit officer can see why it reached a decision.</p>
+</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<button type="button" onClick="{{goIngest}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Upload a statement</button>
+<button type="button" onClick="{{goSamples}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Try a practice sample</button>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<sc-for list="{{homeChips}}" as="c" hint-placeholder-count="4"><span style="font-size:12.5px;color:#30343B;background:#F3F2EE;border:1px solid #E4E1DA;border-radius:999px;padding:5px 12px">{{c.t}}</span></sc-for>
+</div>
+</section>
+
+
+<section aria-labelledby="howH" style="display:flex;flex-direction:column;gap:12px">
+<h2 id="howH" style="margin:0;font-size:16px;font-weight:600">How it works — three stages</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:16px">
+<sc-for list="{{homeStages}}" as="h" hint-placeholder-count="3">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px"><span class="mono" style="width:30px;height:30px;border-radius:50%;background:#1F4FD1;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">{{h.n}}</span><h3 style="margin:0;font-size:15px;font-weight:600">{{h.title}}</h3></div>
+<p style="margin:0;font-size:13px;color:#30343B">{{h.what}}</p>
+<ul style="margin:0;padding-left:18px;font-size:12.5px;color:#30343B;display:flex;flex-direction:column;gap:3px"><sc-for list="{{h.points}}" as="p" hint-placeholder-count="3"><li>{{p.t}}</li></sc-for></ul>
+<div style="margin-top:auto;border-top:1px solid #E4E1DA;padding-top:10px;font-size:12px;color:#4A4F58"><strong style="color:#16181D">Output:</strong> {{h.out}}</div>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="pathH" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 id="pathH" style="margin:0;font-size:16px;font-weight:600">Where to find things</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:10px">
+<sc-for list="{{homeTabs}}" as="t" hint-placeholder-count="6">
+<button type="button" onClick="{{t.go}}" style="background:#FAFAF7;border:1px solid #E4E1DA;border-radius:6px;padding:14px;text-align:left;cursor:pointer;display:flex;gap:12px;align-items:flex-start;min-height:44px;color:#16181D;font:inherit">
+<span class="mono" style="font-size:12px;color:#1F4FD1;font-weight:600;padding-top:2px">{{t.num}}</span>
+<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-weight:600">{{t.label}} →</span><span style="font-size:12.5px;color:#4A4F58">{{t.desc}}</span></span>
+</button>
+</sc-for>
+</div>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">How the credit score is built</h2>
+<p style="margin:0;font-size:13px;color:#30343B">Six parts, each scored 0–100, weighted and added up to a score out of 1000.</p>
+<div style="display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{homeWeights}}" as="w" hint-placeholder-count="6">
+<div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><span><strong>{{w.name}}</strong> <span style="color:#4A4F58">· {{w.what}}</span></span><span class="mono" style="font-weight:600">{{w.pct}}%</span></div><div style="height:6px;border-radius:3px;background:#ECEAE4"><div style="{{w.bar}}"></div></div></div>
+</sc-for>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;font-size:12px">
+<sc-for list="{{homeBands}}" as="b" hint-placeholder-count="5"><span style="{{b.style}}; border-radius:4px; padding:4px 8px"><strong>{{b.band}}</strong> {{b.range}} → {{b.dec}}</span></sc-for>
+</div>
+<p style="margin:0;font-size:12px;color:#4A4F58">Hard rules can override the band: tampering, structured cash deposits or circular money flows send the case for review, and EMIs above 65% of income decline it.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Built-in safeguards</h2>
+<ul style="margin:0;padding-left:18px;font-size:13px;color:#30343B;display:flex;flex-direction:column;gap:6px">
+<li><strong>22 data validation checks</strong>, such as the running balance on every row, opening vs closing balance, duplicates and date gaps.</li>
+<li><strong>Page-order check</strong> stops the run if pages are jumbled or missing.</li>
+<li><strong>Smart review</strong> asks a person only about items that can change the decision.</li>
+<li><strong>Provisional decisions</strong> until every open item is resolved.</li>
+<li><strong>Full audit trail</strong> of every run and step in the Activity log.</li>
+</ul>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Good to know</h2>
+<ul style="margin:0;padding-left:18px;font-size:13px;color:#30343B;display:flex;flex-direction:column;gap:6px">
+<li>With Rules only, files are read in your browser and never uploaded. With the LLM on, page text goes through your backend to the model.</li>
+<li>The AI step calls Claude when the app runs with its backend (npm start + an API key). On this hosted page there is no backend, so rules do the work and are labelled as such.</li>
+<li>OCR on scans can misread digits. The balance checks catch this and send the case for review.</li>
+<li>Practice samples use made-up data for a fictional applicant.</li>
+</ul>
+</div>
+</div>
+</section>
+</sc-if>
+
+<!-- ============ 01 INGEST ============ -->
+<sc-if value="{{isIngest}}" hint-placeholder-val="{{true}}">
+<sc-if value="{{showAcctForm}}" hint-placeholder-val="{{false}}">
+<section aria-labelledby="acctFormH" style="background:#FFFFFF;border:1px solid #D9A06B;border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<h2 id="acctFormH" style="margin:0;font-size:16px;font-weight:600">{{acctFormTitle}}</h2>
+<p style="margin:0;font-size:13px;color:#30343B">{{acctFormSub}}</p>
+</div>
+<sc-for list="{{acctForms}}" as="af" hint-placeholder-count="1">
+<div style="border:1px solid #E4E1DA;border-radius:4px;padding:14px;display:flex;flex-direction:column;gap:10px;background:#FAFAF7">
+<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><span class="mono" style="font-size:12.5px;font-weight:600">{{af.key}} · {{af.title}}</span><span style="{{af.missStyle}}">{{af.missS}}</span></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px">
+<sc-for list="{{af.fields}}" as="f" hint-placeholder-count="5">
+<div style="display:flex;flex-direction:column;gap:4px"><label for="{{f.id}}" style="{{f.labelStyle}}">{{f.label}}</label><input id="{{f.id}}" type="text" value="{{f.val}}" onChange="{{f.set}}" placeholder="{{f.ph}}" style="{{f.inStyle}}"></div>
+</sc-for>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="{{af.typeId}}" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">Account type</label>
+<select id="{{af.typeId}}" value="{{af.typeVal}}" onChange="{{af.setType}}" style="width:100%;min-height:44px;padding:8px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#FFFFFF;font-size:13.5px;color:#16181D">
+<sc-for list="{{af.typeOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.v}}">{{o.v}}</option></sc-for>
+</select></div>
+</div>
+</div>
+</sc-for>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{saveAcct}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Save &amp; re-score</button>
+<button type="button" onClick="{{closeAcct}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Skip for now</button>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{hasAcctMsg}}" hint-placeholder-val="{{false}}"><div role="status" style="border:1px solid #9CCFAE;background:#EAF6EE;color:#14532D;border-radius:6px;padding:10px 16px;font-size:13px;font-weight:600">{{acctMsg}}</div></sc-if>
+
+</sc-if>
+
+<sc-if value="{{isIngest}}" hint-placeholder-val="{{true}}">
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:20px;align-items:start">
+
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:18px">
+<div>
+<h2 style="margin:0 0 6px;font-size:16px;font-weight:600">Upload statements</h2>
+<p style="margin:0;color:#4A4F58">Upload one or more statements. Multi-month files and several accounts (individual, joint, credit card) in one upload are supported.</p>
+</div>
+
+<label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #9EA2AA;border-radius:6px;padding:28px 16px;cursor:pointer;background:#FAFAF7;text-align:center">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
+<span style="font-weight:600">Choose statement files</span>
+<span style="font-size:12px;color:#4A4F58">PDF (digital, scanned or password-protected), PNG / JPG, Excel, CSV, or a text export</span>
+<input class="vh" type="file" multiple="" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.xlsm,.txt,.md,.csv" onChange="{{onFile}}">
+</label><sc-if value="{{hasPw}}" hint-placeholder-val="{{false}}">
+<div role="group" aria-label="Unlock password-protected statement" style="border:1px solid #1F4FD1;background:#F2F5FD;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+<span style="font-weight:600">Password-protected statement</span>
+</div>
+<span class="mono" style="font-size:12px;color:#30343B;word-break:break-all">{{pwName}}</span>
+<label for="pdfpw" style="font-size:12px;color:#30343B">Banks usually set this to something like your customer ID, date of birth (DDMMYYYY) or the first letters of your name plus DOB.</label>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<input id="pdfpw" type="password" autocomplete="off" value="{{pwText}}" onChange="{{onPwInput}}" onKeyDown="{{onPwKey}}" placeholder="PDF password" style="{{pwBorder}}; flex:1 1 200px; min-height:44px; box-sizing:border-box; padding:8px 12px; border-width:1px; border-style:solid; border-radius:4px; font-size:14px; background:#FFFFFF; color:#16181D">
+<button type="button" onClick="{{onPwClick}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Unlock &amp; read</button>
+<button type="button" onClick="{{onPwCancel}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Cancel</button>
+</div>
+<sc-if value="{{hasPwMsg}}" hint-placeholder-val="{{false}}"><span role="alert" style="font-size:13px;font-weight:600;color:#B42318">{{pwMsg}}</span></sc-if>
+<span style="font-size:11.5px;color:#4A4F58">The password is used only in this browser to decrypt the file. It is not saved or written to the activity log.</span>
+</div>
+</sc-if>
+<sc-if value="{{busy}}" hint-placeholder-val="{{false}}"><div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#1F4FD1">{{busyMsg}}</div></sc-if>
+<sc-if value="{{ocrShowBox}}" hint-placeholder-val="{{false}}">
+<div role="status" aria-live="polite" style="{{ocrBox}}; border-radius:4px; padding:12px 14px; display:flex; flex-direction:column; gap:8px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="{{ocrDot}}"></span>
+<span style="font-weight:600;font-size:13px">OCR engine</span>
+<span style="{{ocrStStyle}}">{{ocrSt}}</span>
+<span style="font-size:13px;flex:1 1 200px;min-width:0;word-break:break-word">{{ocrLine}}</span>
+<sc-if value="{{ocrCanPreload}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{preloadOcr}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:6px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">{{ocrPreloadLabel}}</button></sc-if>
+</div>
+<sc-if value="{{ocrHasBar}}" hint-placeholder-val="{{false}}"><div style="height:6px;border-radius:3px;background:#EFE6CC"><div style="{{ocrBar}}"></div></div></sc-if>
+<span style="font-size:12px;color:#4A4F58;word-break:break-word">{{ocrDetail}}</span>
+</div>
+</sc-if>
+
+<div role="group" aria-labelledby="aiH" style="border:1px solid #E4E1DA;border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span id="aiH" style="font-weight:600;font-size:13.5px">AI step</span><span style="font-size:12px;color:#4A4F58">Who reads the pages and classifies unclear rows</span></div>
+<div style="display:flex;border:1px solid #9EA2AA;border-radius:4px;overflow:hidden">
+<button type="button" onClick="{{setAiRules}}" aria-pressed="{{aiRulesPressed}}" style="{{aiRulesStyle}}; border:0; padding:8px 14px; min-height:44px; font-weight:600; font-size:12.5px; cursor:pointer">Rules only</button>
+<button type="button" onClick="{{setAiLlm}}" aria-pressed="{{aiLlmPressed}}" style="{{aiLlmStyle}}; border:0; border-left:1px solid #9EA2AA; padding:8px 14px; min-height:44px; font-weight:600; font-size:12.5px; cursor:pointer">LLM (Claude)</button>
+</div>
+</div>
+<span role="status" style="{{llmMsgStyle}}; font-size:12px">{{llmMsg}}</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:12.5px;color:#30343B"><strong style="color:#16181D">No statement handy?</strong> Try a practice sample instead.</div><button type="button" onClick="{{toggleSamples}}" aria-expanded="{{sampleExp}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">{{sampleBtn}}</button></div>
+<sc-if value="{{showSamples}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58">RUN A SAMPLE — PRACTICE DATA, NO UPLOAD NEEDED</div>
+<p style="margin:0;font-size:12.5px;color:#30343B">Each sample is a made-up 12-page statement for <strong>Rohan Mehta</strong>, Jan–Mar 2025, covering three accounts: individual savings (…7812), joint savings (…4321) and a credit card (…4417). Samples skip OCR, so they work even before the OCR engine is ready.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px">
+<div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
+<button type="button" onClick="{{runSample}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Applicant with risk flags</button>
+<span style="font-size:12.5px;color:#30343B">Problems built in: a missed home-loan EMI with a bounce charge, a card late-payment fee, a new loan and its EMI, three cash deposits just under ₹50,000, ₹75,000 moved in and out within a day, and unclear rows like “MR K” and “TRF/MISC”.</span>
+<span style="font-size:12px;font-weight:600;color:#6B3FC4">Expected: 777 / 1000 · Good → REFER · 7 items in Review queue</span>
+</div>
+<div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
+<button type="button" onClick="{{runClean}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Clean salaried applicant</button>
+<span style="font-size:12.5px;color:#30343B">The same customer without any of those problems: salary on time, all EMIs paid, no penalties or suspicious flows.</span>
+<span style="font-size:12px;font-weight:600;color:#1E7B45">Expected: 931 / 1000 · Excellent → APPROVE</span>
+</div>
+<div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
+<button type="button" onClick="{{runJumbled}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Jumbled pages (error demo)</button>
+<span style="font-size:12.5px;color:#30343B">The same statement with pages 4 and 5 swapped, to show the page-order check in action.</span>
+<span style="font-size:12px;font-weight:600;color:#B42318">Expected: Stops at “Validate page order” with a “Pages appear jumbled” error</span>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+<div style="font-size:12px;color:#4A4F58;border-top:1px solid #E4E1DA;padding-top:14px;display:flex;flex-direction:column;gap:4px">
+<span><strong style="color:#16181D">Where your data goes.</strong> With <em>Rules only</em>, files are read in your browser and never leave it. With <em>LLM</em>, the page text is sent through your own backend to the model.</span>
+<span>Scans and photos take a few seconds per page.</span>
+</div>
+</div>
+
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Pipeline</h2><span class="mono" style="{{pipeHeadStyle}}">{{pipeHead}}</span></div>
+<span class="mono" style="font-size:12px;color:#4A4F58;word-break:break-word">{{source}}</span>
+</div>
+<sc-if value="{{hasStages}}" hint-placeholder-val="{{false}}">
+<ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column">
+<sc-for list="{{stages}}" as="st" hint-placeholder-count="6">
+<li style="{{st.liStyle}}; display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid #EDEBE5">
+<span class="mono" style="font-size:12px;color:#6B7079;width:22px">{{st.num}}</span>
+<span style="{{st.dot}}"></span>
+<div class="stepText" style="flex:1 1 0;min-width:0;display:flex;flex-direction:column"><span style="font-weight:600">{{st.k}}</span><span style="font-size:12px;color:#4A4F58">{{st.d}}</span></div>
+<span class="stepSt" style="{{st.stStyle}}; white-space:nowrap">{{st.stLabel}}</span>
+<button type="button" onClick="{{st.infoToggle}}" aria-expanded="{{st.infoExp}}" aria-label="{{st.infoLabel}}" title="What happens in this step" style="{{st.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button>
+<sc-if value="{{st.infoOpen}}" hint-placeholder-val="{{false}}"><div class="mono" style="flex-basis:100%;margin-left:34px;background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#22262D;white-space:pre-line"><div>{{st.info}}</div><div style="margin-top:10px;font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">EXAMPLE OUTPUT</div><pre style="margin:6px 0 0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;max-height:360px;white-space:pre">{{st.example}}</pre></div></sc-if>
+</li>
+</sc-for>
+</ol>
+</sc-if>
+<sc-if value="{{hasData}}" hint-placeholder-val="{{false}}">
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{goTx}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">View transactions</button>
+<button type="button" onClick="{{goRisk}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Go to risk summary</button>
+</div>
+</sc-if>
+<sc-if value="{{noData}}" hint-placeholder-val="{{true}}">
+<p style="margin:0;color:#4A4F58;font-size:13px">Stages appear here once a file or sample is run: convert → validate page order → extract in 3-page batches → enrich → classify → score.</p>
+</sc-if>
+</div>
+</section>
+
+<sc-if value="{{hasVal}}" hint-placeholder-val="{{false}}">
+<section aria-labelledby="valH" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="valH" style="margin:0;font-size:16px;font-weight:600">Data validation — {{valTotal}} checks</h2>
+<sc-if value="{{valRan}}" hint-placeholder-val="{{false}}"><span class="mono" style="font-size:12.5px"><span style="color:#1E7B45;font-weight:600">{{valPass}} passed</span> · <span style="color:#B54708;font-weight:600">{{valWarn}} warning(s)</span> · <span style="color:#B42318;font-weight:600">{{valFail}} failed</span> · <span style="color:#4A4F58">{{valNa}} not applicable</span></span></sc-if>
+<sc-if value="{{valNotRun}}" hint-placeholder-val="{{true}}"><span style="font-size:12.5px;color:#4A4F58">Every statement goes through these checks. Results appear here after a run.</span></sc-if></div>
+<button type="button" onClick="{{toggleVal}}" aria-expanded="{{valExp}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-weight:600;cursor:pointer">{{valBtn}}</button>
+</div>
+<sc-if value="{{showVal}}" hint-placeholder-val="{{true}}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:14px">
+<sc-for list="{{valGroups}}" as="vg" hint-placeholder-count="5">
+<div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;text-transform:uppercase">{{vg.g}}</span>
+<sc-for list="{{vg.items}}" as="v" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid #EDEBE5;border-radius:4px;background:#FAFAF7">
+<span aria-hidden="true" style="{{v.badge}}">{{v.icon}}</span>
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
+<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span style="font-weight:600;font-size:13px">{{v.n}}. {{v.name}}</span><span style="{{v.labStyle}}">{{v.lab}}</span></div>
+<sc-if value="{{v.hasDetail}}" hint-placeholder-val="{{false}}"><span style="font-size:12.5px;color:#22262D;font-weight:500;word-break:break-word">Result: {{v.detail}}</span></sc-if>
+<span style="font-size:12px;color:#30343B">Checks: {{v.rule}}</span>
+<span style="font-size:12px;color:#30343B">If it fails: {{v.onFail}}</span>
+<sc-if value="{{v.hasWhy}}" hint-placeholder-val="{{false}}"><span style="font-size:11.5px;color:#4A4F58">Why: {{v.why}}</span></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</section>
+</sc-if>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:20px 22px;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:8px">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Accepted formats &amp; transaction format</h2><span style="font-size:12.5px;color:#4A4F58">What the extractor can read, what it can't, and what a readable transaction row looks like.</span></div>
+<button type="button" onClick="{{toggleFormats}}" aria-expanded="{{fmtExp}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">{{fmtBtn}}</button>
+</div>
+<sc-if value="{{showFormats}}" hint-placeholder-val="{{true}}">
+<div style="display:flex;flex-direction:column">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;padding:14px 0;border-top:1px solid #E4E1DA">
+<div style="grid-column:1/-1;font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">FILES</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#1F4FD1;letter-spacing:.04em">ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Digital PDF with a text layer (you can select the text)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Password-protected PDF — you enter the password</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Text or markdown export (.txt, .md)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>CSV export (.csv) with a header row</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Several files in one upload (e.g. savings + joint + card)</span></li></ul></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#B42318;letter-spacing:.04em">NOT ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Images (.png, .jpg, .webp) — read by OCR in the browser, a few seconds per page</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Scanned PDFs with no text layer — each page rendered and read by OCR; mixed PDFs OCR only the scanned pages</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Excel (.xlsx, .xls, .xlsm) — every sheet read as one page; dates converted to DD/MM/YYYY</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Word, HTML or email statements</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Handwritten, blurred, skewed or very low-resolution scans — OCR confidence drops; check the review queue</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Non-English scans (OCR language pack is English only)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Files with pages out of order (stops with an error)</span></li></ul></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;padding:14px 0;border-top:1px solid #E4E1DA">
+<div style="grid-column:1/-1;font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">TRANSACTION ROWS</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#1F4FD1;letter-spacing:.04em">ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Table with | separators: Date | Value Date | Narration | Debit | Credit | Balance</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>CSV with the same columns; quoted fields and commas inside amounts are fine</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Plain PDF text: Date [Value Date] Narration Amount Balance</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Plain PDF text with separate Debit, Credit and Balance amounts</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Column names: Date / Txn Date / Transaction Date · Value Date · Narration / Description / Particulars / Details · Debit / Withdrawal · Credit / Deposit · Balance</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Narrations that wrap onto a second line (re-joined)</span></li></ul></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#B42318;letter-spacing:.04em">NOT ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Rows without a date at the start</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>A single signed Amount column (e.g. −500.00 / +500.00)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Statements without a running Balance column (debit/credit can't be checked)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Columns in another order with no header row (assumed order: Date, Value Date, Narration, Debit, Credit, Balance)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Summary or reward-points tables (not read as transactions)</span></li></ul></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;padding:14px 0;border-top:1px solid #E4E1DA">
+<div style="grid-column:1/-1;font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DATES</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#1F4FD1;letter-spacing:.04em">ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>DD/MM/YYYY · DD-MM-YYYY · DD.MM.YYYY</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>DD/MM/YY (read as 20YY)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>DD-MMM-YYYY · DD MMM YYYY (e.g. 05-Jan-2025, 05 Jan 2025)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>YYYY-MM-DD</span></li></ul></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#B42318;letter-spacing:.04em">NOT ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>MM/DD/YYYY (US order — would be misread as day/month)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Month first in words (Jan 5, 2025)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Dates with no year (05 Jan)</span></li></ul></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;padding:14px 0;border-top:1px solid #E4E1DA">
+<div style="grid-column:1/-1;font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">AMOUNTS</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#1F4FD1;letter-spacing:.04em">ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Indian or international grouping: 1,42,500.00 · 142,500.00 · 142500.00</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Prefixes ₹, INR, Rs.</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Cr / Dr after the amount</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Two decimals in plain PDF text (e.g. 500.00)</span></li></ul></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#B42318;letter-spacing:.04em">NOT ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Amounts in brackets for debits: (500.00)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Plain PDF text amounts with no decimals (500)</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Comma as the decimal point (1.234,56)</span></li></ul></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px;padding:14px 0;border-top:1px solid #E4E1DA">
+<div style="grid-column:1/-1;font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">HEADER &amp; FOOTER</div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#1F4FD1;letter-spacing:.04em">ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Account Number / A/C No / Card Number</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Account Holder / Cardholder / Customer Name</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Account Type · Currency or “Amounts in INR” · Opening Balance</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Bank name on a line containing “BANK”, or “Bank Name: …”</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Footer “Page X of Y” or “Page X / Y” for the order check</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M5 12l5 5 9-10"></path></svg><span>Pages with no header — details carried from earlier pages</span></li></ul></div>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;color:#B42318;letter-spacing:.04em">NOT ACCEPTED</span><ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13px"><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Account details only inside a logo or image</span></li><li style="display:flex;gap:8px;align-items:flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B42318" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0;margin-top:3px"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><span>Pages with no page numbers (order check falls back and is noted)</span></li></ul></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid #E4E1DA">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">TRANSACTION FORMAT — EXAMPLES THAT READ CORRECTLY</span>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px">
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12px;font-weight:600">1 · Table (text / markdown export)</span><pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;white-space:pre">| Date | Value Date | Narration | Debit | Credit | Balance |
+|---|---|---|---|---|---|
+| 01/01/2025 | 02/01/2025 | NEFT CR-CITI0000002-ACME TECHNOLOGIES PVT LTD-SALARY JAN 2025 |  | 1,42,500.00 | 2,26,750.00 |
+| 03/01/2025 | 03/01/2025 | ACH D-HOMEFIN LTD-LN0045821936-EMI JAN | 38,450.00 |  | 1,88,300.00 |</pre></div>
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12px;font-weight:600">2 · CSV export</span><pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;white-space:pre">Txn Date,Value Date,Description,Withdrawal,Deposit,Balance
+05/01/2025,05/01/2025,"UPI/500512349876/FRESHBASKET MART/fb@okaxis/Groceries",2875.00,,"1,85,425.00"
+14/01/2025,15/01/2025,NEFT CR-ICIC0000104-STRIPE PAYMENTS INDIA-PAYOUT,,"18,400.00","2,03,825.00"</pre></div>
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12px;font-weight:600">3 · Digital PDF text (no separators)</span><pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;white-space:pre">01-Jan-2025  02-Jan-2025  NEFT CR-ACME TECHNOLOGIES PVT LTD-SALARY   1,42,500.00 Cr   2,26,750.00
+03-Jan-2025  ACH D-HOMEFIN LTD-LN0045821936-EMI JAN          38,450.00   1,88,300.00
+             continuation line of a long narration</pre></div>
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12px;font-weight:600">Header &amp; footer the extractor looks for</span><pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;white-space:pre">MERIDIAN BANK | Statement of Account
+Account Holder: ROHAN MEHTA
+Account Number: 50100234567812
+Account Type: Savings - Individual
+Currency: INR
+Opening Balance: 84,250.00
+…
+Page 1 of 12</pre></div>
+</div>
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:12px;font-weight:600;color:#B42318">Not read — and why</span><pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;white-space:pre">Jan 5, 2025   Grocery store     -500       ← month-first date, signed amount, no decimals, no balance
+01/05/2025    UPI/ANKIT         (500.00)   ← US date order, bracketed debit, no balance
+[blurred phone photo, 40% OCR confidence]  ← rows misread or skipped; rescan at 300 dpi</pre></div>
+</div>
+</div>
+</sc-if>
+</section>
+
+<sc-if value="{{hasBatches}}" hint-placeholder-val="{{false}}">
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:20px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h2 style="margin:0;font-size:16px;font-weight:600">Batch log <span style="font-weight:400;color:#4A4F58;font-size:13px">· {{batchSummary}}</span></h2><button type="button" onClick="{{toggleBatches}}" aria-expanded="{{batchExp}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">{{batchBtn}}</button></div>
+<sc-if value="{{showBatches}}" hint-placeholder-val="{{false}}">
+<p style="margin:0;font-size:12.5px;color:#4A4F58">Technical detail: pages are read 3 at a time. If a batch has no account header, it borrows the account from the batch before it.</p>
+<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th>Batch</th><th>Pages</th><th>Accounts</th><th class="num">Rows</th><th>Metadata inherited</th><th>Extraction</th></tr></thead>
+<tbody>
+<sc-for list="{{batches}}" as="b" hint-placeholder-count="4">
+<tr><td class="mono">#{{b.n}}</td><td class="mono">{{b.pages}}</td><td class="mono">{{b.accounts}}</td><td class="num">{{b.rows}}</td><td style="font-size:12px;color:#4A4F58">{{b.inherited}}</td><td style="{{b.llmStyle}}; font-size:12px">{{b.llmS}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px"><h2 style="margin:0;font-size:16px;font-weight:600">Accounts detected</h2><sc-if value="{{canEditAcct}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{editAcct}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">Edit account details</button></sc-if></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px">
+<sc-for list="{{accts}}" as="a" hint-placeholder-count="3">
+<div style="border:1px solid #DAD8D2;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:3px;background:#FAFAF7">
+<span style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#1F4FD1;text-transform:uppercase">{{a.label}}</span>
+<span class="mono" style="font-weight:600;font-size:13px">{{a.num}}</span>
+<span style="font-size:12px">{{a.holder}}</span>
+<span style="font-size:12px;color:#4A4F58">{{a.bank}} · {{a.currency}} · {{a.n}} txns</span>
+<span style="font-size:12px;color:#4A4F58">Pages {{a.pagesStr}} · opening {{a.ob}}</span>
+<sc-if value="{{a.hasMiss}}" hint-placeholder-val="{{false}}"><span style="font-size:12px;font-weight:600;color:#B54708">{{a.missS}}</span></sc-if>
+<sc-if value="{{a.hasManual}}" hint-placeholder-val="{{false}}"><span style="font-size:12px;font-weight:600;color:#1E7B45">{{a.manualS}}</span></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2 style="margin:0;font-size:16px;font-weight:600">Converted text <span style="font-weight:400;color:#4A4F58;font-size:13px">· what the extractor sees</span></h2><div style="display:flex;gap:8px;align-items:center"><button type="button" onClick="{{togglePreview}}" aria-expanded="{{previewExp}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">{{previewBtn}}</button><button type="button" onClick="{{textInfo.infoToggle}}" aria-expanded="{{textInfo.infoExp}}" aria-label="{{textInfo.infoLabel}}" title="What happens in this step" style="{{textInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div></div>
+<sc-if value="{{showPreview}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{textInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div class="mono" style="flex-basis:100%;margin-left:0;background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#22262D;white-space:pre-line"><div>{{textInfo.info}}</div><div style="margin-top:10px;font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">EXAMPLE OUTPUT</div><pre style="margin:6px 0 0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;max-height:360px;white-space:pre">{{textInfo.example}}</pre></div></sc-if>
+<div style="display:flex;flex-wrap:wrap;gap:6px">
+<sc-for list="{{pageBtns}}" as="p" hint-placeholder-count="12">
+<button type="button" onClick="{{p.go}}" aria-label="Show page {{p.n}}" style="{{p.style}}; border-width:1px; border-style:solid; border-radius:4px; min-width:44px; min-height:44px; font-family:'IBM Plex Mono',monospace; cursor:pointer">{{p.n}}</button>
+</sc-for>
+</div>
+<pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:16px;border-radius:4px;font-size:11.5px;line-height:1.55;overflow:auto;max-height:520px;white-space:pre">{{pvText}}</pre>
+</sc-if>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{hasPages}}" hint-placeholder-val="{{false}}"><span></span></sc-if>
+</sc-if>
+
+<!-- ============ 02 TRANSACTIONS ============ -->
+<sc-if value="{{isTx}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{noData}}" hint-placeholder-val="{{false}}">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:28px;color:#4A4F58">No transactions yet. Upload a statement or run a sample on the Ingest tab.</div>
+</sc-if>
+<sc-if value="{{hasData}}" hint-placeholder-val="{{true}}">
+<section aria-labelledby="clsHelpH" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="clsHelpH" style="margin:0;font-size:16px;font-weight:600">How each transaction gets its category: RULE → LLM → MANUAL</h2>
+<span style="font-size:12.5px;color:#4A4F58">Like sorting receipts into labelled envelopes (Groceries, Rent, Salary, EMI…). Three helpers sort, one after another; each row records which helper sorted it and how sure it was.</span></div>
+<button type="button" onClick="{{toggleClsHelp}}" aria-expanded="{{clsHelpExp}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-weight:600;cursor:pointer">{{clsHelpBtn}}</button>
+</div>
+<sc-if value="{{showClsHelp}}" hint-placeholder-val="{{true}}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:12px">
+<div style="border:1px solid #1F4FD1;border-radius:6px;background:#F2F5FD;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0">
+<div style="display:flex;align-items:center;gap:10px"><span class="mono" style="width:28px;height:28px;border-radius:50%;background:#1F4FD1;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">1</span><div style="display:flex;flex-direction:column"><strong style="font-size:14.5px">RULE — the rule book</strong><span style="font-size:12px;color:#30343B">Fast and reliable. Checked top to bottom; first match wins.</span></div></div>
+<div style="font-size:12.5px;color:#22262D;display:flex;flex-direction:column;gap:6px"><span>Your rules → fixed rules → keywords in the line → payment to a person (P2P).</span><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">ACH D-HOMEFIN LTD-LN0045821936-EMI JAN</span><span style="font-weight:600">→ EMI · 96% (loan number + EMI)</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">UPI/REFUND/SHOPKART ONLINE/…</span><span style="font-weight:600">→ REFUND · 96% (not counted as income)</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">NEFT DR-…DPS SCHOOL TRUST-Tuition fee Q4</span><span style="font-weight:600">→ EDUCATION · 90% (keyword "TUITION")</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">UPI/…/RAHUL VERMA/…/Cricket kit share</span><span style="font-weight:600">→ P2P · 84% (payment to a person)</span></div></div>
+<div class="mono" style="font-size:12px;font-weight:600;color:#1F4FD1;border-top:1px solid rgba(0,0,0,.08);padding-top:6px">This run: {{clsRuleN}} rows · 84–97% sure</div>
+</div>
+<div style="border:1px solid #8A6400;border-radius:6px;background:#FFF8E6;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0">
+<div style="display:flex;align-items:center;gap:10px"><span class="mono" style="width:28px;height:28px;border-radius:50%;background:#8A6400;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">2</span><div style="display:flex;flex-direction:column"><strong style="font-size:14.5px">LLM — the smart guesser</strong><span style="font-size:12px;color:#30343B">For lines no rule matched. A guess, so less sure.</span></div></div>
+<div style="font-size:12.5px;color:#22262D;display:flex;flex-direction:column;gap:6px"><span>In this PoC it is a simple keyword stand-in for an AI model; in production a real model reads the line.</span><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">Same company credits every month, no "salary" word</span><span style="font-weight:600">→ SALARY · 78%</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">…MOBILE RECHARGE… / …UBER…</span><span style="font-weight:600">→ UTILITY / TRAVEL · 66%</span></div><div style="display:flex;flex-direction:column;gap:1px"><span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-word">INTL TXN/USD 24.99/CLOUDNOTE INC/APPLE PAY</span><span style="font-weight:600">→ OTHER_DEBIT · 35% (nothing fits)</span></div></div>
+<div class="mono" style="font-size:12px;font-weight:600;color:#8A6400;border-top:1px solid rgba(0,0,0,.08);padding-top:6px">This run: {{clsLlmN}} rows · {{clsOtherN}} ended as OTHER</div>
+</div>
+<div style="border:1px solid #1E7B45;border-radius:6px;background:#EAF6EE;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0">
+<div style="display:flex;align-items:center;gap:10px"><span class="mono" style="width:28px;height:28px;border-radius:50%;background:#1E7B45;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">3</span><div style="display:flex;flex-direction:column"><strong style="font-size:14.5px">MANUAL — the human check</strong><span style="font-size:12px;color:#30343B">Final word. Only for what is still unclear.</span></div></div>
+<div style="font-size:12.5px;color:#22262D;display:flex;flex-direction:column;gap:6px"><span>Anything under the {{clsThr}} threshold waits in the Review queue. You can:</span><span>• pick the right category → 100% · MANUAL</span><span>• click <strong>Confirm as is</strong> → kept, marked 100%</span><span>• click <strong>Save as rule</strong> → every matching line, now and in future statements, is sorted by step 1</span><span>The list, review queue and risk score recalculate instantly.</span></div>
+<div class="mono" style="font-size:12px;font-weight:600;color:#1E7B45;border-top:1px solid rgba(0,0,0,.08);padding-top:6px">This run: {{clsManN}} decided by you · {{clsLowN}} still under {{clsThr}}</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:12px;font-size:12.5px;color:#30343B">
+<div style="display:flex;flex-direction:column;gap:4px"><strong style="color:#16181D">Why three steps?</strong><span>Rules handle the easy majority instantly, the AI handles the odd ones, and a person checks only what is truly unclear. A credit officer can see how much to trust each label.</span></div>
+<div style="display:flex;flex-direction:column;gap:4px"><strong style="color:#16181D">Where to see it</strong><span><strong>Method</strong> and <strong>Conf</strong> columns in the table below (hover Method for the reason) · tiles above count each method · <strong>Review queue</strong> holds step 3 · <strong>Taxonomy &amp; rules</strong> is where you add rules for step 1.</span></div>
+</div>
+</div>
+</sc-if>
+</section>
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(160px,100%),1fr));gap:12px">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 16px"><div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58">TRANSACTIONS</div><div class="mono" style="font-size:24px;font-weight:600">{{nTx}}</div></div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 16px"><div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58">ACCOUNTS · MONTHS</div><div class="mono" style="font-size:24px;font-weight:600">{{nAcc}} · {{nMonths}}</div></div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 16px"><div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58">AVG CONFIDENCE</div><div class="mono" style="font-size:24px;font-weight:600">{{avgConf}}</div></div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 16px"><div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58">METHOD RULE · LLM · MANUAL</div><div class="mono" style="font-size:24px;font-weight:600">{{nRule}} · {{nLlm}} · {{nManual}}</div></div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#B54708">FLAGGED FOR REVIEW</div><div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:24px;font-weight:600;color:#B54708">{{nFlag}}</span><button type="button" onClick="{{goReview}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 10px;min-height:44px;font-weight:600;cursor:pointer">Review</button></div></div>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;padding:16px 18px;border-bottom:1px solid #E4E1DA">
+<div style="display:flex;flex-direction:column;gap:4px"><label for="fa" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">ACCOUNT</label>
+<select id="fa" value="{{fAcct}}" onChange="{{setAcct}}" style="min-height:40px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff">
+<sc-for list="{{acctOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.v}}">{{o.l}}</option></sc-for>
+</select></div>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="fm" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">MONTH</label>
+<select id="fm" value="{{fMonth}}" onChange="{{setMonth}}" style="min-height:40px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff">
+<sc-for list="{{monthOpts}}" as="o" hint-placeholder-count="4"><option value="{{o.v}}">{{o.l}}</option></sc-for>
+</select></div>
+<label style="display:flex;align-items:center;gap:8px;min-height:40px;cursor:pointer"><input type="checkbox" checked="{{fFlag}}" onChange="{{setFlag}}" style="width:18px;height:18px">Flagged only</label>
+<span class="mono" style="margin-left:auto;font-size:12px;color:#4A4F58">{{nRows}} rows</span>
+</div>
+<div style="overflow:auto;max-height:720px">
+<table class="tbl">
+<thead><tr><th>Date</th><th>Value date</th><th>Account</th><th>Narration</th><th>Counterparty</th><th>Channel</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th><th>Cur</th><th>L1</th><th>L2 category</th><th class="num">Conf</th><th>Method</th><th>Attributes</th></tr></thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<tr style="{{r.rowStyle}}">
+<td class="mono" style="white-space:nowrap">{{r.d}}</td>
+<td class="mono" style="white-space:nowrap;color:#4A4F58">{{r.vd}}</td>
+<td class="mono" style="white-space:nowrap">{{r.accLabel}}</td>
+<td class="mono" style="font-size:11.5px;min-width:260px;max-width:340px;word-break:break-word">{{r.narr}}</td>
+<td style="{{r.cpStyle}}">{{r.cp}}</td>
+<td class="mono" style="font-size:11.5px">{{r.channel}}</td>
+<td class="num">{{r.dr}}</td>
+<td class="num" style="color:#1F4FD1">{{r.cr}}</td>
+<td class="num" style="color:#4A4F58">{{r.balS}}</td>
+<td class="mono">{{r.currency}}</td>
+<td style="{{r.l1Style}}; font-size:11.5px">{{r.l1}}</td>
+<td class="mono" style="font-weight:600;font-size:11.5px">{{r.l2}}</td>
+<td class="num" style="{{r.confStyle}}">{{r.confS}}</td>
+<td class="mono" style="font-size:11.5px" title="{{r.why}}">{{r.methodS}}</td>
+<td style="font-size:11.5px;color:#4A4F58;min-width:140px">{{r.attrS}}</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+</sc-if>
+</sc-if>
+
+<!-- ============ 03 REVIEW ============ -->
+<sc-if value="{{isReview}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start">
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 360px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Items to decide</h2>
+<sc-if value="{{smartOn}}" hint-placeholder-val="{{true}}"><p style="margin:0;color:#30343B"><strong>Smart review is on:</strong> only items that can change the credit decision are shown — large amounts, possible income, recurring payments (could be EMI or rent), loan-related lines and possible bounces. Similar rows are grouped, so one decision covers them all.</p></sc-if>
+<p style="margin:0;font-size:13px;color:#4A4F58"><strong class="mono" style="color:#16181D">{{nGroups}}</strong> group(s) · <strong class="mono" style="color:#16181D">{{nRev}}</strong> row(s) to decide<sc-if value="{{hasAuto}}" hint-placeholder-val="{{false}}"> · <strong class="mono" style="color:#1E7B45">{{autoN}}</strong> small one-off row(s) auto-accepted (marked “auto” in Transactions)</sc-if> · {{manualCount}} manual edit(s)</p>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{toggleMode}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">{{modeBtn}}</button>
+<sc-if value="{{hasReview}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{acceptAll}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">{{acceptAllLabel}}</button></sc-if>
+<sc-if value="{{confirmAcceptAll}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{cancelAcceptAll}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:8px 12px;min-height:44px;font-size:12.5px;font-weight:600;cursor:pointer">Cancel</button></sc-if>
+</div>
+</div>
+<sc-if value="{{noData}}" hint-placeholder-val="{{false}}"><p style="margin:0;color:#4A4F58">Run a statement first.</p></sc-if>
+<sc-if value="{{hasCpRuleMsg}}" hint-placeholder-val="{{false}}"><div role="status" style="border:1px solid #9CCFAE;background:#EAF6EE;color:#14532D;border-radius:4px;padding:8px 12px;font-size:13px;font-weight:600">{{cpRuleMsg}}</div></sc-if>
+<sc-if value="{{noReview}}" hint-placeholder-val="{{false}}"><p style="margin:0;color:#1E7B45;font-weight:600">Queue is clear — nothing left that could change the decision.</p></sc-if>
+<sc-if value="{{hasReview}}" hint-placeholder-val="{{true}}">
+<div style="display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{reviewGroups}}" as="g" hint-placeholder-count="3">
+<div style="border:1px solid #E8C9A8;background:#FFF9F2;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline">
+<strong style="font-size:14.5px;word-break:break-word">{{g.title}}</strong>
+<span class="mono" style="font-size:12.5px;font-weight:600">{{g.sumS}}</span>
+</div>
+<span style="font-size:12.5px;color:#7A3A06;font-weight:600">{{g.impS}}</span>
+<div style="display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{g.samples}}" as="x" hint-placeholder-count="2"><span class="mono" style="font-size:11.5px;color:#30343B;word-break:break-word">{{x.line}}</span></sc-for>
+<sc-if value="{{g.hasMore}}" hint-placeholder-val="{{false}}"><span style="font-size:12px;color:#4A4F58">{{g.more}}</span></sc-if>
+</div>
+<span style="font-size:11.5px;color:#4A4F58">{{g.reasonS}}</span>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px;align-items:end">
+<div style="display:flex;flex-direction:column;gap:4px"><label for="{{g.gid}}cp" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">COUNTERPARTY</label><input id="{{g.gid}}cp" type="text" value="{{g.cpVal}}" onChange="{{g.onCp}}" style="width:100%;box-sizing:border-box;min-height:40px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;font-size:13px;color:#16181D;background:#fff"></div>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="{{g.gid}}cat" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">{{g.l1}} → CATEGORY</label><select id="{{g.gid}}cat" value="{{g.catVal}}" onChange="{{g.onCat}}" style="width:100%;box-sizing:border-box;min-height:40px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;font-size:13px;color:#16181D;background:#fff"><sc-for list="{{g.opts}}" as="o" hint-placeholder-count="8"><option value="{{o.v}}">{{o.v}}</option></sc-for></select></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{g.apply}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">{{g.applyLabel}}</button>
+<button type="button" onClick="{{g.accept}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 12px;min-height:44px;font-weight:600;cursor:pointer">Confirm as is</button>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;border-top:1px dashed #E8C9A8;padding-top:10px">
+<div style="display:flex;flex-direction:column;gap:4px;flex:1 1 240px;min-width:0"><label for="{{g.gid}}rm" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">REMEMBER FOR FUTURE STATEMENTS — NARRATION CONTAINS</label><input id="{{g.gid}}rm" type="text" value="{{g.ruleMatch}}" onChange="{{g.onMatch}}" style="width:100%;box-sizing:border-box;min-height:40px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;font-size:13px;color:#16181D;background:#fff;font-family:'IBM Plex Mono',monospace"></div>
+<button type="button" onClick="{{g.saveRule}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Save as rule</button>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</section>
+</sc-if>
+
+<!-- ============ 04 RISK ============ -->
+<sc-if value="{{isRisk}}" hint-placeholder-val="{{false}}">
+<sc-if value="{{noData}}" hint-placeholder-val="{{false}}">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:28px;color:#4A4F58">No score yet. Upload a statement or run a sample on the Ingest tab.</div>
+</sc-if>
+<sc-if value="{{hasRisk}}" hint-placeholder-val="{{true}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:28px">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">CREDIT RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div>
+<div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+<span class="mono" style="font-size:72px;font-weight:600;line-height:1;letter-spacing:-.03em">{{risk.total}}</span>
+<span class="mono" style="font-size:16px;color:#4A4F58">/ 1000</span>
+<span style="{{risk.bandStyle}}">{{risk.band}}</span>
+</div>
+<div style="position:relative;margin:10px 0 4px">
+<div style="display:grid;grid-template-columns:50fr 10fr 10fr 10fr 20fr;height:18px;border-radius:3px;overflow:hidden">
+<div style="background:#E7B8B2"></div><div style="background:#F0CFA6"></div><div style="background:#EADBA0"></div><div style="background:#B9C9F1"></div><div style="background:#8FA8EA"></div>
+</div>
+<div style="{{risk.marker}}"></div>
+</div>
+<div class="mono" style="display:grid;grid-template-columns:50fr 10fr 10fr 10fr 20fr;font-size:10.5px;color:#4A4F58">
+<span>Poor &lt;500</span><span>BA</span><span>Fair</span><span>Good</span><span>Excellent 800+</span>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DECISION RECOMMENDATION</div>
+<div><span style="{{risk.decStyle}}">{{risk.decision}}</span></div>
+<ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
+<sc-for list="{{risk.why}}" as="w" hint-placeholder-count="2"><li>{{w.w}}</li></sc-for>
+</ul>
+<p style="margin:0;font-size:12px;color:#4A4F58">Policy: band sets the base decision (Excellent/Good → APPROVE, Fair → WITH CONDITIONS, Below Average → REFER, Poor → DECLINE); hard rules override it (FOIR &gt; 65% → DECLINE; tampering, structuring or circular flows → REFER).</p>
+</div>
+</section>
+<section aria-label="Export" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+<div style="display:flex;flex-direction:column;gap:2px"><strong style="font-size:14.5px">Export: transactions + credit risk summary (JSON)</strong><span style="font-size:12px;color:#4A4F58">Every transaction with all captured fields, category, confidence and method · six component scores and metrics · composite score, band, decision and reasons · all 22 validation results.</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" onClick="{{downloadJson}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Download JSON</button>
+<button type="button" onClick="{{copyJson}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Copy JSON</button>
+<button type="button" onClick="{{toggleJson}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">{{jsonBtn}}</button>
+</div>
+</div>
+<sc-if value="{{hasJsonMsg}}" hint-placeholder-val="{{false}}"><span role="status" style="font-size:12.5px;font-weight:600;color:#1E7B45">{{jsonMsg}}</span></sc-if>
+<sc-if value="{{showJson}}" hint-placeholder-val="{{false}}"><label for="jsonOut" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">JSON OUTPUT (SELECT ALL AND COPY)</label><textarea id="jsonOut" readonly="" value="{{jsonText}}" style="width:100%;box-sizing:border-box;height:360px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;line-height:1.5;padding:12px;border:1px solid #9EA2AA;border-radius:4px;background:#16181D;color:#E6E8EC"></textarea></sc-if>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:14px">
+<sc-for list="{{risk.comps}}" as="c" hint-placeholder-count="6">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+<span style="font-weight:600;font-size:15px">{{c.name}}</span>
+<span class="mono" style="font-size:12px;color:#4A4F58">weight {{c.wS}}</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px"><span class="mono" style="font-size:30px;font-weight:600;line-height:1">{{c.sS}}</span><span class="mono" style="color:#4A4F58;font-size:12px">/100 → {{c.pts}} pts</span></div>
+<div style="height:6px;background:#ECEAE4;border-radius:3px"><div style="{{c.barStyle}}"></div></div>
+<dl style="margin:0;display:flex;flex-direction:column;gap:5px">
+<sc-for list="{{c.metrics}}" as="m" hint-placeholder-count="4">
+<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px dotted #DAD8D2;padding-bottom:4px"><dt style="color:#4A4F58">{{m.k}}</dt><dd class="mono" style="margin:0;text-align:right;font-weight:500">{{m.v}}</dd></div>
+</sc-for>
+</dl>
+</div>
+</sc-for>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:14px">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Monthly income vs spend</h2>
+<div style="display:flex;gap:16px;font-size:12px;color:#4A4F58"><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#1F4FD1;border-radius:2px"></span>Income (excl. P2P, refunds, transfers, loans)</span><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#E08A3C;border-radius:2px"></span>Spend (excl. EMI, investments, transfers)</span></div>
+<sc-for list="{{risk.monthsV}}" as="m" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center">
+<span class="mono" style="font-size:12px;font-weight:600">{{m.m}}</span>
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;align-items:center;gap:8px"><div style="{{m.incBar}}"></div><span class="mono" style="font-size:11.5px">₹{{m.inc}}</span></div>
+<div style="display:flex;align-items:center;gap:8px"><div style="{{m.expBar}}"></div><span class="mono" style="font-size:11.5px">₹{{m.exp}} <span style="color:#4A4F58">(ess {{m.ess}} · disc {{m.disc}})</span></span></div>
+</div>
+</div>
+</sc-for>
+<h3 style="margin:6px 0 0;font-size:13px;font-weight:600">Income by category</h3>
+<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th>Category</th><sc-for list="{{risk.monthHeads}}" as="h" hint-placeholder-count="3"><th class="num">{{h.m}}</th></sc-for></tr></thead>
+<tbody>
+<sc-for list="{{risk.incTable}}" as="row" hint-placeholder-count="3">
+<tr><td class="mono" style="font-weight:600">{{row.cat}}</td><sc-for list="{{row.cells}}" as="cell" hint-placeholder-count="3"><td class="num">{{cell.v}}</td></sc-for></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font-size:16px;font-weight:600">EMI obligations identified</h2>
+<sc-if value="{{risk.hasLoans}}" hint-placeholder-val="{{true}}">
+<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th>Loan account</th><th>Lender</th><th class="num">Monthly</th><th class="num">Presented</th><th>Status</th></tr></thead>
+<tbody>
+<sc-for list="{{risk.loans}}" as="l" hint-placeholder-count="3">
+<tr><td class="mono">{{l.loan}}</td><td>{{l.lender}}</td><td class="num">{{l.mS}}</td><td class="num">{{l.presented}}</td><td style="{{l.bStyle}}">{{l.b}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Fraud &amp; integrity signals</h2>
+<sc-if value="{{risk.hasFlags}}" hint-placeholder-val="{{true}}">
+<ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{risk.flags}}" as="f" hint-placeholder-count="3">
+<li style="display:flex;flex-direction:column;gap:2px;padding:10px 12px;background:#FDF3EC;border:1px solid #EBC7AE;border-radius:4px"><span style="font-weight:600;color:#8A3606">{{f.t}}</span><span class="mono" style="font-size:12px">{{f.d}}</span></li>
+</sc-for>
+</ul>
+</sc-if>
+<p style="margin:0;font-size:12px;color:#4A4F58">Checks: running-balance arithmetic on every row, same-counterparty in/out within 3 days, ≥₹50k in and out within 1 day, 3+ cash deposits of ₹40–50k inside 30 days.</p>
+</div>
+</div>
+</section>
+</sc-if>
+</sc-if>
+
+<!-- ============ 05 LOG ============ -->
+<sc-if value="{{isLog}}" hint-placeholder-val="{{false}}">
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<div style="padding:16px 18px;border-bottom:1px solid #E4E1DA;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2 style="margin:0;font-size:16px;font-weight:600">Run history</h2><span style="font-size:12px;color:#4A4F58">Each new statement replaces the working data; earlier runs are archived here with their results.</span></div>
+<sc-if value="{{hasHist}}" hint-placeholder-val="{{true}}">
+<div style="overflow:auto;max-height:320px">
+<table class="tbl">
+<thead><tr><th>Run</th><th>Completed</th><th>File</th><th class="num">Pages</th><th class="num">Txns</th><th class="num">Accts</th><th>Score</th><th>Decision</th><th class="num">To review</th><th>Status</th></tr></thead>
+<tbody>
+<sc-for list="{{hist}}" as="h" hint-placeholder-count="3">
+<tr><td class="mono" style="font-weight:600">#{{h.run}}</td><td class="mono" style="white-space:nowrap;font-size:11.5px">{{h.when}}</td><td style="font-size:12px;max-width:260px;word-break:break-word">{{h.source}}</td><td class="num">{{h.nPages}}</td><td class="num">{{h.nTx}}</td><td class="num">{{h.nAcc}}</td><td class="mono" style="white-space:nowrap">{{h.score}}</td><td style="font-weight:600;font-size:12px;white-space:nowrap">{{h.decision}}</td><td class="num">{{h.flagged}}</td><td style="{{h.stStyle}}; font-size:12px; white-space:nowrap">{{h.status}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+<sc-if value="{{noHist}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:16px 18px;color:#4A4F58">No completed runs yet.</p></sc-if>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:20px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 style="margin:0;font-size:16px;font-weight:600">Pipeline steps</h2><span class="mono" style="font-size:12px;color:#4A4F58">{{progS}}</span></div>
+<ol style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{steps}}" as="x" hint-placeholder-count="8">
+<li style="{{x.rowStyle}}; border-width:1px; border-style:solid; border-radius:4px; padding:10px 12px; display:flex; flex-wrap:wrap; align-items:center; gap:12px">
+<span class="mono" style="font-size:12px;color:#6B7079;width:20px">{{x.num}}</span>
+<span style="{{x.dot}}"></span>
+<div class="stepText" style="flex:1 1 0;min-width:0;display:flex;flex-direction:column"><span style="font-weight:600">{{x.k}}</span><span style="font-size:12px;color:#4A4F58">{{x.d}}</span></div>
+<span class="stepSt" style="{{x.stStyle}}; white-space:nowrap">{{x.stLabel}}</span>
+<button type="button" onClick="{{x.infoToggle}}" aria-expanded="{{x.infoExp}}" aria-label="{{x.infoLabel}}" title="What happens in this step" style="{{x.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button>
+<sc-if value="{{x.infoOpen}}" hint-placeholder-val="{{false}}"><div class="mono" style="flex-basis:100%;margin-left:32px;background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:10px 12px;font-size:11.5px;line-height:1.6;color:#22262D;white-space:pre-line"><div>{{x.info}}</div><div style="margin-top:10px;font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">EXAMPLE OUTPUT</div><pre style="margin:6px 0 0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11px;line-height:1.55;overflow:auto;max-height:360px;white-space:pre">{{x.example}}</pre></div></sc-if>
+</li>
+</sc-for>
+</ol>
+</div>
+
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<div style="padding:16px 18px;border-bottom:1px solid #E4E1DA;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Activity log <span class="mono" style="font-weight:400;font-size:12px;color:#4A4F58">· newest first · {{nEntries}} shown of {{nLog}}</span></h2><span style="font-size:11.5px;color:#4A4F58">History is kept across runs and reloads in this browser (last 2,000 events).</span></div>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="lr" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">RUN</label>
+<select id="lr" value="{{logRun}}" onChange="{{setRun}}" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;max-width:320px">
+<sc-for list="{{runOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.v}}">{{o.l}}</option></sc-for>
+</select></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap" role="group" aria-label="Filter by level">
+<sc-for list="{{levelBtns}}" as="b" hint-placeholder-count="5">
+<button type="button" onClick="{{b.go}}" aria-pressed="{{b.pressed}}" style="{{b.style}}; border-width:1px; border-style:solid; border-radius:4px; padding:6px 10px; min-height:44px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; cursor:pointer">{{b.l}} {{b.n}}</button>
+</sc-for>
+<button type="button" onClick="{{clearLog}}" style="background:#FFFFFF;color:#B42318;border:1px solid #D9A39C;border-radius:4px;padding:6px 10px;min-height:44px;font-size:12px;font-weight:600;cursor:pointer">{{clearLabel}}</button>
+<sc-if value="{{confirmClear}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{cancelClear}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:6px 10px;min-height:44px;font-size:12px;font-weight:600;cursor:pointer">Keep history</button></sc-if>
+</div>
+</div>
+<sc-if value="{{noEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">No events yet. Every pipeline step, batch, warning and reviewer action is recorded here with a timestamp.</p></sc-if>
+<sc-if value="{{hasEntries}}" hint-placeholder-val="{{true}}">
+<div style="overflow:auto;max-height:640px">
+<table class="tbl">
+<thead><tr><th>Run</th><th>Date · time</th><th>Level</th><th>Step</th><th>Event</th></tr></thead>
+<tbody>
+<sc-for list="{{entries}}" as="e" hint-placeholder-count="10">
+<tr><td class="mono" style="white-space:nowrap;font-weight:600;font-size:11.5px">{{e.runS}}</td><td class="mono" style="white-space:nowrap;color:#4A4F58;font-size:11.5px">{{e.dayS}} {{e.ts}}</td><td style="{{e.lvStyle}}">{{e.level}}</td><td style="white-space:nowrap;font-weight:500;font-size:12px">{{e.step}}</td><td style="font-size:12.5px;word-break:break-word">{{e.msg}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
+</div>
+</section>
+</sc-if>
+
+<!-- ============ KNOWLEDGE ============ -->
+<sc-if value="{{isKnow}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:6px;border-left:4px solid #1F4FD1">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">IN ONE LINE</span>
+<p style="margin:0;font-size:15px;color:#16181D"><strong>The LLM reads and understands. Code checks, scores and decides.</strong></p>
+<p style="margin:0;font-size:13px;color:#4A4F58">An LLM (large language model) is used where judgement is needed to read messy text. Anything that must be exact, repeatable or explainable to a regulator stays in plain code.</p>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Why an LLM is needed</h2>
+<p style="margin:0;font-size:13px;color:#30343B">Rules work well when statements are tidy and predictable. Real statements aren't:</p>
+<sc-for list="{{knWhy}}" as="w" hint-placeholder-count="4">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px">
+<strong style="font-size:13.5px">{{w.t}}</strong>
+<span style="font-size:13px;color:#30343B">{{w.d}}</span>
+<sc-if value="{{w.hasEx}}" hint-placeholder-val="{{false}}"><span class="mono" style="font-size:11.5px;color:#4A4F58;word-break:break-word">{{w.ex}}</span></sc-if>
+</div>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">What the LLM should not do</h2>
+<sc-for list="{{knNot}}" as="n" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-weight:700;color:#B42318;flex-shrink:0">✕</span><span style="font-size:13px;color:#30343B"><strong style="color:#16181D">{{n.t}}</strong> {{n.d}}</span></div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Order of work</h2>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px">
+<span style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:8px 10px"><strong>1 · Rules</strong> free and instant</span><span aria-hidden="true">→</span>
+<span style="background:#FFF8E6;border:1px solid #E6CD86;border-radius:4px;padding:8px 10px"><strong>2 · LLM</strong> what rules can't read</span><span aria-hidden="true">→</span>
+<span style="background:#EAF6EE;border:1px solid #9CCFAE;border-radius:4px;padding:8px 10px"><strong>3 · Person</strong> what is still unclear</span>
+</div>
+</div>
+</div>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<div style="padding:18px 20px 12px;display:flex;flex-direction:column;gap:4px"><h2 style="margin:0;font-size:16px;font-weight:600">Where the LLM fits in the pipeline</h2><span style="font-size:13px;color:#4A4F58">Two main uses (steps 3 and 5) and two optional ones. Scoring and decisions never use it.</span></div>
+<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th>Step</th><th>LLM role</th><th>Input → output</th><th>Today in this app</th></tr></thead>
+<tbody>
+<sc-for list="{{knSteps}}" as="r" hint-placeholder-count="7">
+<tr style="{{r.rowStyle}}"><td style="font-weight:600;white-space:nowrap">{{r.step}}</td><td><span style="{{r.tagStyle}}; font-size:11px; font-weight:700; letter-spacing:.05em; border-radius:3px; padding:2px 6px; white-space:nowrap">{{r.tag}}</span> <span style="font-size:12.5px">{{r.role}}</span></td><td style="font-size:12.5px">{{r.io}}</td><td style="font-size:12.5px;color:#4A4F58">{{r.today}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">How the integration works</h2>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px">
+<span style="border:1px solid #9EA2AA;border-radius:4px;padding:6px 10px;background:#FAFAF7">Browser</span><span aria-hidden="true">→</span>
+<span style="border:1px solid #9EA2AA;border-radius:4px;padding:6px 10px;background:#FAFAF7">Small backend <span style="color:#4A4F58">(holds the API key)</span></span><span aria-hidden="true">→</span>
+<span style="border:1px solid #1F4FD1;border-radius:4px;padding:6px 10px;background:#F2F5FD">LLM API</span>
+</div>
+<p style="margin:0;font-size:12.5px;color:#4A4F58">The API key must stay on the backend, never in the browser.</p>
+<h3 style="margin:4px 0 0;font-size:14px;font-weight:600">One call per 3-page batch (step 3)</h3>
+<ol style="margin:0;padding-left:18px;font-size:13px;color:#30343B;display:flex;flex-direction:column;gap:6px">
+<li><strong>Instructions:</strong> extract every transaction, return only JSON in this format, the counterparty is mandatory ("UNIDENTIFIED" if none), don't invent rows.</li>
+<li><strong>Context:</strong> account, bank, currency and closing balance from the previous batch, so details carry across pages.</li>
+<li><strong>Input:</strong> the text of the 3 pages.</li>
+<li><strong>Output:</strong> a list of transactions in a fixed format. The model's tool/function calling forces it to follow the format.</li>
+</ol>
+<h3 style="margin:4px 0 0;font-size:14px;font-weight:600">Classification calls (step 5)</h3>
+<p style="margin:0;font-size:13px;color:#30343B">Only the unclear rows, in one grouped call. The model must pick from the taxonomy's category list and give a confidence. Anything under 70% still goes to the Review queue.</p>
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:10px 12px;font-size:12.5px;color:#30343B"><strong>Scale:</strong> a 100-page statement means about 34 extraction calls plus 1–2 classification calls, run several at a time.</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Guardrails on every LLM answer</h2>
+<p style="margin:0;font-size:13px;color:#30343B">Code checks each response before it is accepted:</p>
+<sc-for list="{{knGuard}}" as="g" hint-placeholder-count="5">
+<div style="display:flex;gap:10px;align-items:flex-start"><span class="mono" style="width:24px;height:24px;border-radius:50%;background:#EAF6EE;color:#14532D;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0">{{g.n}}</span><span style="font-size:13px;color:#30343B"><strong style="color:#16181D">{{g.t}}</strong> {{g.d}}</span></div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Example: one row in, one row out</h2>
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">NARRATION FROM THE STATEMENT</span>
+<pre class="mono" style="margin:0;background:#F3F2EE;border:1px solid #E4E1DA;padding:10px 12px;border-radius:4px;font-size:11.5px;white-space:pre-wrap;word-break:break-word">17/03/2025 | IMPS/P2A/507612340111/VIKRAM TRADERS/Advance | | 75,000.00 | 2,41,310.00</pre>
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">WHAT THE LLM RETURNS</span>
+<pre class="mono" style="margin:0;background:#16181D;color:#E6E8EC;padding:12px;border-radius:4px;font-size:11.5px;line-height:1.55;overflow:auto;white-space:pre">{{knExample}}</pre>
+<span style="font-size:12.5px;color:#4A4F58">Code then checks that 1,66,310 + 75,000 = 2,41,310 before accepting the row.</span>
+</div>
+</div>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Where it is integrated in this build</h2>
+<p style="margin:0;font-size:13px;color:#30343B">The LLM is wired into extraction (step 3) and classification (step 5). It runs when the app is started with its backend and an API key; switch <strong>AI step → LLM (Claude)</strong> on Ingest. Without a backend (as on this hosted page) the same pipeline runs on rules and says so. Validation, review, scoring and the JSON export check the model's output exactly as they check the rule parser's.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px">
+<sc-for list="{{knCode}}" as="k" hint-placeholder-count="3">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px"><span class="mono" style="font-weight:600;color:#1F4FD1">{{k.fn}}</span><span style="font-size:13px;color:#30343B">{{k.d}}</span><span style="font-size:12px;color:#4A4F58"><strong style="color:#16181D">See it:</strong> {{k.see}}</span></div>
+</sc-for>
+</div>
+</section>
+</sc-if>
+
+<!-- ============ TAXONOMY ============ -->
+<sc-if value="{{isTax}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:22px;display:flex;flex-direction:column;gap:14px;margin-bottom:20px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Counterparty rules — teach your bank's formats</h2>
+<p style="margin:0;font-size:13px;color:#30343B">When a narration contains the text below, its counterparty (and optionally category) is set by your rule at 97% confidence. Rules are checked before the built-in formats and stay in this browser for future statements. You can also save a rule straight from the Review queue.</p>
+<p style="margin:0;font-size:12px;color:#4A4F58">Built in: {{nAliases}} merchant aliases (e.g. AMZN / AMAZON PAY INDIA PRIVA → AMAZON, BUNDL TECHNOLOGIES → SWIGGY) and {{nIfsc}} bank codes for IFSC → counterparty bank. Truncated names like “ACME TECH PRIVATE LIMI” and “ACME TECH PVT LTD” are grouped as one counterparty for salary, EMI and circular-flow checks.</p>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px;align-items:end">
+<div style="display:flex;flex-direction:column;gap:4px"><label for="nrm" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">NARRATION CONTAINS</label><input id="nrm" type="text" value="{{nr.match}}" onChange="{{setNrMatch}}" placeholder="e.g. Q8X2@YBL or ACH D- TATA CAP" style="width:100%;box-sizing:border-box;min-height:44px;padding:8px 10px;border:1px solid #9EA2AA;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:13px"></div>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="nrc" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">COUNTERPARTY NAME</label><input id="nrc" type="text" value="{{nr.cp}}" onChange="{{setNrCp}}" placeholder="e.g. KARAN MALHOTRA" style="width:100%;box-sizing:border-box;min-height:44px;padding:8px 10px;border:1px solid #9EA2AA;border-radius:4px;font-size:13px"></div>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="nrt" style="font-size:11px;font-weight:600;letter-spacing:.05em;color:#4A4F58">CATEGORY (OPTIONAL)</label><select id="nrt" value="{{nr.cat}}" onChange="{{setNrCat}}" style="width:100%;min-height:44px;padding:8px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;font-size:13px"><sc-for list="{{allCatOpts}}" as="o" hint-placeholder-count="6"><option value="{{o.v}}">{{o.l}}</option></sc-for></select></div>
+<button type="button" onClick="{{addNr}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Add rule</button>
+</div>
+<sc-if value="{{hasCpRuleMsg}}" hint-placeholder-val="{{false}}"><span role="status" style="font-size:13px;font-weight:600;color:#1E7B45">{{cpRuleMsg}}</span></sc-if>
+<sc-if value="{{hasCpRules}}" hint-placeholder-val="{{false}}">
+<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Narration contains</th><th>Counterparty</th><th>Category</th><th class="num">Rows matched now</th><th></th></tr></thead><tbody>
+<sc-for list="{{cpRuleRows}}" as="r" hint-placeholder-count="2"><tr><td class="mono">{{r.match}}</td><td style="font-weight:600">{{r.cp}}</td><td class="mono" style="font-size:12px">{{r.catS}}</td><td class="num">{{r.hits}}</td><td><button type="button" onClick="{{r.del}}" aria-label="Remove rule {{r.match}}" style="background:#FFFFFF;color:#B42318;border:1px solid #D9A39C;border-radius:4px;padding:6px 10px;min-height:44px;font-size:12px;font-weight:600;cursor:pointer">Remove</button></td></tr></sc-for>
+</tbody></table></div>
+</sc-if>
+<sc-if value="{{noCpRules}}" hint-placeholder-val="{{true}}"><span style="font-size:12.5px;color:#4A4F58">No rules yet.</span></sc-if>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:20px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:22px;display:flex;flex-direction:column;gap:16px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Classifier settings</h2>
+<div style="display:flex;flex-direction:column;gap:6px">
+<label for="thr" style="font-weight:600">Review threshold: <span class="mono">{{thrS}}</span></label>
+<input id="thr" type="range" min="40" max="95" step="5" value="{{thrVal}}" onChange="{{setThr}}" style="width:100%">
+<span style="font-size:12px;color:#4A4F58">Rows with counterparty or category confidence below this go to the review queue.</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;border-top:1px solid #E4E1DA;padding-top:14px">
+<span style="font-weight:600">Override or extend the taxonomy with a CSV</span>
+<span style="font-size:12px;color:#4A4F58">Same category + level1 replaces the default; anything else is added. CSV rules are checked first.</span>
+<pre class="mono" style="margin:0;background:#F3F2EE;border:1px solid #DAD8D2;padding:10px;border-radius:4px;font-size:11.5px;overflow-x:auto">category,level1,group,keywords,expense_type,cost_type
+SUBSCRIPTION,DEBIT,discretionary,STREAMFLIX;CLOUDNOTE,discretionary,fixed
+FREELANCE_INCOME,CREDIT,income,STRIPE,,</pre>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<label style="display:inline-flex;align-items:center;background:#1F4FD1;color:#FFFFFF;border-radius:4px;padding:10px 14px;min-height:44px;box-sizing:border-box;font-weight:600;cursor:pointer;position:relative">Upload CSV<input class="vh" type="file" accept=".csv,text/csv" onChange="{{onCsv}}"></label>
+<button type="button" onClick="{{loadDemoCsv}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Load demo rules</button>
+<button type="button" onClick="{{clearCsv}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;min-height:44px;font-weight:600;cursor:pointer">Reset to default</button>
+</div>
+<sc-if value="{{hasCsvMsg}}" hint-placeholder-val="{{false}}"><span style="font-size:13px;color:#1F4FD1;font-weight:600">{{csvMsg}}</span></sc-if>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid #E4E1DA;padding-top:14px;font-size:12.5px;color:#30343B">
+<span style="font-weight:600;color:#16181D">Classification order</span>
+<span>1 · CSV rules → 2 · structural rules (bounces, own-account transfers, refunds, loan disbursal, salary, EMI with loan no.) → 3 · narration keywords (so "Tuition fee" beats P2P) → 4 · P2P for individuals → 5 · LLM stage → 6 · manual review.</span>
+<span>In this PoC the LLM stage is a lexical stand-in that returns lower confidence; in production it is a model call over each 3-page batch.</span>
+</div>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<div style="padding:16px 18px;border-bottom:1px solid #E4E1DA;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2 style="margin:0;font-size:16px;font-weight:600">Active taxonomy</h2><span class="mono" style="font-size:12px;color:#4A4F58">{{nTax}} categories · {{nCustom}} from CSV</span></div>
+<div style="overflow:auto;max-height:640px">
+<table class="tbl">
+<thead><tr><th>L1</th><th>L2</th><th>Group</th><th>Keywords</th><th>Essential</th><th>Fixed</th><th>Source</th></tr></thead>
+<tbody>
+<sc-for list="{{taxRows}}" as="x" hint-placeholder-count="10">
+<tr><td class="mono" style="font-size:11.5px">{{x.l1}}</td><td class="mono" style="font-weight:600;font-size:11.5px">{{x.code}}</td><td style="font-size:12px">{{x.group}}</td><td class="mono" style="font-size:11px;color:#4A4F58;max-width:260px">{{x.kwS}}</td><td style="font-size:12px">{{x.ess}}</td><td style="font-size:12px">{{x.fix}}</td><td style="{{x.srcStyle}}; font-size:12px">{{x.src}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</sc-if>
+
+</main>
+</div>
+</div>
+</x-dc>

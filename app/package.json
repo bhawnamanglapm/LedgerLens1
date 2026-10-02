@@ -1,0 +1,23 @@
+{
+  "name": "ledgerlens-bsa",
+  "version": "1.0.0",
+  "description": "LedgerLens Bank Statement Analyzer \u2014 web app + backend (LLM proxy) + CLI, sharing one engine",
+  "main": "server.js",
+  "bin": {
+    "ledgerlens": "cli.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/run.js",
+    "cli": "node cli.js"
+  },
+  "dependencies": {
+    "pdfjs-dist": "3.11.174",
+    "tesseract.js": "5.1.1",
+    "xlsx": "0.18.5",
+    "@tesseract.js-data/eng": "1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

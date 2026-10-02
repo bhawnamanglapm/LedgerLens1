@@ -1,0 +1,19 @@
+# One-click deploy on Render (render.com → New → Blueprint → pick this repo).
+# Secrets are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: ledgerlens-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # paste in the dashboard
+      - key: APP_PASSWORD
+        sync: false          # share this with reviewers
+      - key: DEMO_MODE
+        value: "1"
+      - key: LLM_DAILY_LIMIT
+        value: "300"
+      - key: LLM_IP_LIMIT
+        value: "120"
