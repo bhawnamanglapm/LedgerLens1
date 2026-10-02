@@ -726,6 +726,7 @@ class Component extends DCLogic {
   }
   channelOf(n) {
     const u = this.normNarr(n).toUpperCase();
+    if (/^(?:(?:TO|BY)\s+)?(?:CLG\s+)?(?:CHQ|CHEQUE)\b/.test(u)) return 'CHEQUE';
     const tests = [['UPI', /^UPI\b|\bUPI[\/\-]/], ['NEFT', /\bNEFT\b/], ['IMPS', /\bIMPS\b|^MMT\//], ['RTGS', /\bRTGS\b/], ['NACH/ACH', /\bN?ACH\b|\bACHDR\b|\bECS\b|\bNACH\b/],
       ['ATM', /\bATM\b|^NWD[\-\s:]|^EAW[\-\s:]|^ATW[\-\s:]|\bCASH WDL\b/], ['CHEQUE', /\bCHQ|CHEQUE|\bCLG\b|\bI\/W\b|\bO\/W\b|\bMICR\b/], ['CASH', /CASH DEP|\bBY CASH\b|\bCDM\b|CASH DEPOSIT/], ['BBPS', /\bBBPS\b|BILLPAY|\bBPAY\b|^BIL\//],
       ['CARD', /^POS\b|^CARD\/|^VPS\/|^IPS\/|^PCD\/|^ECOM\b|APPLE PAY|GOOGLE PAY|INTL TXN|\bME DC\b/], ['INTERNAL', /CHGS|CHRG|CHARGES|\bFEE\b|INTEREST|\bINT\.?\s?PD\b|\bGST\b|\bTDS\b|PAYMENT RECEIVED|^CC PAYMENT|^REFUND|\bMIN BAL|\bAMB\b/], ['TRANSFER', /^TRF|TRANSFER|^INF\/|\bINFT\b/]];
@@ -781,10 +782,17 @@ class Component extends DCLogic {
     if ((m = u.match(/^ECOM\s+(?:PUR\s*\/?\s*)?([A-Z][^\/]+)/i))) return out(m[1], 0.85, 'Card · e-commerce');
     if ((m = u.match(/^REFUND\/([^\/]+)/i))) return out(m[1], 0.9, 'Refund');
     // ---- cash, cheque, bank-generated ----
+    const isChq = /\bCLG\b|CHQ|CHEQUE|\bI\/W\b|\bO\/W\b/i.test(u);
+    if (isChq && /^(?:(?:TO|BY)\s+)?(?:CLG\s+)?(?:CHQ|CHEQUE)\b.*\bSELF\b/i.test(u)) return out('Self (cheque cash withdrawal)', 0.85, 'Cheque · self', true);
     if (/^ATM\b|^NWD[\-\s:]|^EAW[\-\s:]|^ATW[\-\s:]|\bCASH WDL\b/i.test(u)) return out('Self (ATM cash)', 0.9, 'ATM', true);
     if (/^CASH DEP|\bBY CASH\b|\bCDM\b|CASH DEPOSIT/i.test(u)) return out('Self (cash deposit)', 0.88, 'Cash deposit', true);
-    if ((m = u.match(/(?:CHQ|CHEQUE)\s*(?:PAID|DEP|ISSUED)?\b.*?(?:-|\/)\s*([A-Z][A-Z .&]{3,})$/i))) return out(m[1], 0.75, 'Cheque');
-    if (/\bCLG\b|CHQ|CHEQUE|\bI\/W\b|\bO\/W\b/i.test(u)) return out('Cheque counterparty (not printed)', 0.55, 'Cheque', true);
+    if (isChq && !/\bRTN\b|RETURN|DISHONOU?R|BOUNCE/i.test(u)) {
+      // payee follows the cheque number (CHQ PAID-000451-NAME, TO CLG CHQ NO 000452 NAME, BY CLG/ICIC/000123/NAME, CHEQUE NO 112233 ISSUED TO NAME)
+      const tail = (u.match(/\b\d{6}\b\s*[\/\-]?\s*(.+)$/) || [])[1] || u.split(/[\/\-]/).pop();
+      const name = tail.split(/[\/\-]/).map((x) => x.trim().replace(/^(?:(?:ISSUED|PAID|DEPOSITED)\s+)?(?:TO|FROM|BY)\s+/i, '')).filter((x) => /^[A-Z][A-Z .&']{3,}$/i.test(x) && !/^(?:SELF|CASH|CLG|CHQ|CHEQUE|DEP|PAID|ISSUED|CLEARING)\b/i.test(x)).pop();
+      if (name) return out(name, 0.75, 'Cheque');
+    }
+    if (isChq) return out('Cheque counterparty (not printed)', 0.55, 'Cheque', true);
     if (/PAYMENT RECEIVED|^CC PAYMENT/i.test(u)) return out('Own card account', 0.9, 'Card bill', true);
     if (/CHGS|CHRG|CHARGES|\bFEE\b|INTEREST|\bINT\.?\s?PD\b|\bGST\b|\bTDS\b|\bMIN BAL|\bAMB\b|\bDTAX\b/i.test(u)) return out(bank || 'Bank', 0.9, 'Bank-generated', true);
     if ((m = u.match(/\b(?:FROM|TO)\s+([A-Z][A-Z .&]{3,}?)(?:\s+(?:A\/?C|REF|MOBILE|IFSC)\b|\s*$)/i))) return out(m[1], 0.7, 'FROM/TO');
@@ -805,7 +813,7 @@ class Component extends DCLogic {
     if ((m = n.match(/\b([A-Z]{4}0[A-Z0-9]{6})\b/i))) { const code = m[1].toUpperCase(); a.push({ k: 'IFSC', v: code }); const bn = this.ifscBanks()[code.slice(0, 4)]; if (bn) a.push({ k: 'Cpty bank', v: bn }); }
     if ((m = n.match(/\b([A-Z]{4}[A-Z0-9]?\d{11,18}|[A-Z]\d{8,15})\b/)) && /NEFT|RTGS/i.test(n) && !/^LN/i.test(m[1])) a.push({ k: 'UTR', v: m[1] });
     else if ((m = n.match(/(?:^|[\/\-\s])(\d{12})(?=$|[\/\-\s])/)) && /UPI|IMPS|MMT/i.test(n)) a.push({ k: 'RRN', v: m[1] });
-    if ((m = n.match(/\b(?:CHQ|CHEQUE)\s*(?:NO\.?)?\s*[:\-]?\s*(\d{6})\b/i))) a.push({ k: 'Cheque no', v: m[1] });
+    if ((m = n.match(/\b(?:CHQ|CHEQUE|CLG)\b[^\d]{0,20}?(\d{6})\b/i))) a.push({ k: 'Cheque no', v: m[1] });
     return a;
   }
 
@@ -971,7 +979,7 @@ class Component extends DCLogic {
       if (rule) cpx = { cp: rule.cp, c: 0.97, fmt: 'Your rule: contains "' + rule.match + '"', rule };
       else { const canon = this.canonCp(cpx.cp + ' ' + (cpx.c < 0.7 ? U : '')); if (canon && canon !== cpx.cp) { attrs.push({ k: 'Printed as', v: cpx.cp }); cpx = { cp: canon, c: Math.max(cpx.c, 0.9), fmt: (cpx.fmt || '') + ' · merchant alias' }; } }
       const orig = attrs.find((x) => x.k === 'Orig');
-      return { id: 't' + i, ...r, l1, amount: r.cr || r.dr || 0, channel: ch, cp: cpx.cp, cpRaw: cpx.cp, cpKey: this.cpKey(cpx.cp), cpConf: cpx.c, cpFmt: cpx.fmt || '', cpRule: cpx.rule || null, attrs, currency: orig ? orig.v.slice(0, 3) : (a.currency || 'INR'), month: r.date.slice(0, 7), acct: a, accLabel: (a.card ? 'Card ' : 'A/c ') + '…' + (a.last4 || '') };
+      return { id: 't' + i, ...r, l1, amount: r.cr || r.dr || 0, channel: ch, cp: cpx.cp, cpRaw: cpx.cp, cpKey: this.cpKey(cpx.cp), cpConf: cpx.c, cpFmt: cpx.fmt || '', cpRule: cpx.rule || null, attrs, currency: a.currency || 'INR', fxCur: orig ? orig.v.slice(0, 3) : null, fxAmt: orig ? Number(orig.v.slice(4)) : null, month: r.date.slice(0, 7), acct: a, accLabel: (a.card ? 'Card ' : 'A/c ') + '…' + (a.last4 || '') };
     });
     const months = {}; base.filter((t) => t.l1 === 'CREDIT').forEach((t) => { months[t.cpKey] = months[t.cpKey] || new Set(); months[t.cpKey].add(t.month); });
     Object.keys(months).forEach((k) => { ctx.recurring[k] = months[k].size; });
@@ -1496,6 +1504,7 @@ class Component extends DCLogic {
       transactions: T.map((t) => ({
         id: t.id, date: t.date, value_date: t.vdate, account_number: t.account, month: t.month, narration: t.narr, extracted_by: t.src || 'RULE',
         debit: r2(t.dr || null), credit: r2(t.cr || null), balance: r2(t.bal), currency: t.currency,
+        original_currency: t.fxCur || null, original_amount: t.fxCur ? t.fxAmt : null,
         counterparty: t.cp, counterparty_confidence: r2(t.cpConf), counterparty_format: t.cpFmt || null,
         channel: t.channel, attributes: t.attrs.reduce((o, a) => { o[a.k.toLowerCase().replace(/[^a-z0-9]+/g, '_')] = a.v; return o; }, {}),
         level1: t.l1, level2: t.l2, category_group: t.group || null, essential: t.ess || null, fixed_or_variable: t.fix || null,
@@ -1619,7 +1628,7 @@ class Component extends DCLogic {
     add('Completeness', 'Enough history to score', months < 3 || T.length < 20 ? 'warn' : 'pass', months + ' month(s), ' + T.length + ' transactions' + (months < 3 ? ' — at least 3 months recommended' : '') + (T.length < 20 ? ' — very few transactions' : ''), 'Regularity and trends need several months.');
     // CONSISTENCY
     const curs = Array.from(new Set(s.accounts.map((a) => a.currency)));
-    const fx = T.filter((t) => t.currency !== (t.acct && t.acct.currency)).length;
+    const fx = T.filter((t) => t.fxCur).length;
     add('Consistency', 'Currency', curs.length > 1 ? 'warn' : 'pass', 'Account currency: ' + curs.join(', ') + (fx ? ' · ' + fx + ' foreign-currency card row(s), amounts already in account currency' : ''), 'Mixed currencies must not be added together.');
     const names = Array.from(new Set(s.accounts.map((a) => (a.holder || '').toUpperCase().replace(/\(.*?\)/g, '').trim()).filter((x) => x && x !== '—')));
     const people = names.map((n) => n.split(/\s*&\s*|\s+AND\s+/)[0].trim());

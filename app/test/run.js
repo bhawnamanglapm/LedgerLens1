@@ -26,7 +26,7 @@ const EXPECTED = {
 
 function runCli(file, env, extra) {
   const out = path.join(os.tmpdir(), 'll_test_' + process.pid + '_' + Math.random().toString(36).slice(2) + '.json');
-  try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js'), path.join(TS, file), '-o', out].concat(extra || []), { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'ignore'], timeout: 240000 }); }
+  try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js'), path.resolve(TS, file), '-o', out].concat(extra || []), { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'ignore'], timeout: 240000 }); }
   catch (e) { return { exit: e.status }; }
   const j = JSON.parse(fs.readFileSync(out, 'utf8')); fs.unlinkSync(out); return j;
 }
@@ -79,6 +79,39 @@ function runCli(file, env, extra) {
   const out = path.join(os.tmpdir(), 'll_j.json'); let code = 0;
   try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js'), '--sample', 'jumbled', '-o', out], { stdio: 'ignore' }); } catch (e) { code = e.status; }
   ok(code === 3, 'jumbled pages stop the pipeline (exit code 3)');
+
+  console.log('\n6 · cheques, foreign currency, long statements');
+  const ce = new C({});
+  for (const [n, cp, no] of [['CHQ PAID-000451-SHARMA TRADERS', 'SHARMA TRADERS', '000451'], ['TO CLG CHQ NO 000452 SHARMA TRADERS', 'SHARMA TRADERS', '000452'], ['CHEQUE NO 112233 ISSUED TO MEHTA & SONS', 'MEHTA & SONS', '112233'], ['BY CLG/ICIC/000123/VIKRAM TRADERS', 'VIKRAM TRADERS', '000123'], ['CHQ NO. 000453/SELF/CASH WDL', 'Self (cheque cash withdrawal)', '000453']]) {
+    const ch = ce.channelOf(n); const got = ce.counterpartyOf(n, ch, '').cp; const chq = (ce.attrsOf(n).find((a) => a.k === 'Cheque no') || {}).v;
+    ok(ch === 'CHEQUE' && got === cp && chq === no, 'cheque "' + n + '" → ' + ch + ' · ' + got + ' · no. ' + chq, 'expected CHEQUE · ' + cp + ' · no. ' + no);
+  }
+  const fx = runCli('02_multi_month_multi_account.pdf', { LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' }, []);
+  const accCur = {}; (fx.accounts || []).forEach((a) => { accCur[a.account_number] = a.currency; });
+  const fxRows = (fx.transactions || []).filter((t) => t.original_currency);
+  ok(fx.transactions && fx.transactions.every((t) => t.currency === accCur[t.account_number]), 'every row\'s currency is the currency its amounts are in (the account currency)');
+  ok(fxRows.length === 3 && fxRows.every((t) => t.original_currency === 'USD' && t.original_amount === 24.99 && t.currency === 'INR'), 'foreign card spends keep the original amount separately (' + fxRows.length + ' × USD 24.99, billed in INR)');
+
+  // a 102-page statement (34 batches), header on page 1 only — the batching must scale and every page must inherit the account
+  const PAGES = 102, PER = 10; let bal = 250000; const big = [];
+  const fmt = (x) => x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const NARR = ['UPI/5%s1234567/FRESHBASKET MART/freshbasket@okaxis/Groceries', 'NEFT CR-CITI0000002-ACME TECHNOLOGIES PVT LTD-SALARY', 'BBPS/ELECTRICITY/NORTHGRID POWER/CA 1029384', 'POS/XX8832/CITY FUELS SECTOR 29', 'IMPS/P2A/5%s1234567/SUNIL KAPOOR/House rent', 'CHQ PAID-0%s-SHARMA TRADERS'];
+  for (let p = 0; p < PAGES; p++) {
+    const rows = [];
+    for (let i = 0; i < PER; i++) {
+      const k = p * PER + i, dt = String(1 + Math.floor((p % 10) * 2.8 + i * 0.25)).padStart(2, '0') + '/' + String(1 + Math.floor(p / 10)).padStart(2, '0') + '/2025';
+      const kind = k % NARR.length, cr = kind === 1, amt = cr ? 9000 + (k % 7) * 100 : 500 + (k % 13) * 37.5;
+      bal = Math.round((cr ? bal + amt : bal - amt) * 100) / 100;
+      rows.push('| ' + dt + ' | ' + dt + ' | ' + NARR[kind].replace('%s', String(100000 + k).slice(-5)) + ' | ' + (cr ? '' : fmt(amt)) + ' | ' + (cr ? fmt(amt) : '') + ' | ' + fmt(bal) + ' |');
+    }
+    const head = p === 0 ? 'MERIDIAN BANK | Statement of Account\nAccount Holder: ROHAN MEHTA\nAccount Number: 50100234567812\nAccount Type: Savings - Individual\nCurrency: INR\nStatement Period: 01/01/2025 to 30/11/2025\nOpening Balance: 2,50,000.00\n\n' : '';
+    big.push(head + '| Date | Value Date | Narration | Debit | Credit | Balance |\n|---|---|---|---|---|---|\n' + rows.join('\n') + '\n\nPage ' + (p + 1) + ' of ' + PAGES);
+  }
+  const bigFile = path.join(os.tmpdir(), 'll_big_' + process.pid + '.txt'); fs.writeFileSync(bigFile, big.join('\f'));
+  const bj = runCli(bigFile, { LLM_PROVIDER: 'mock' }, ['--llm']); fs.unlinkSync(bigFile);
+  const bai = (bj.run || {}).ai || {};
+  ok(bj.transactions && bj.transactions.length === PAGES * PER && bj.run.batches.length === 34 && bai.extraction_calls === 34 && bai.fallbacks_to_rules === 0 && bj.data_validation.summary.failed === 0, PAGES + '-page statement → ' + (bj.run ? bj.run.batches.length : 0) + ' batches of 3 pages · ' + (bj.transactions || []).length + ' txns · ' + bai.extraction_calls + ' model calls · 0 failed checks', JSON.stringify({ exit: bj.exit, ai: bai }));
+  ok(bj.transactions && bj.transactions.every((t) => t.account_number === '50100234567812' && t.currency === 'INR' && t.counterparty && t.counterparty !== 'UNIDENTIFIED'), 'pages 2–' + PAGES + ' inherit account and currency; every row has a counterparty');
 
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
