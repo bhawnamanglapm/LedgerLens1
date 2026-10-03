@@ -2,6 +2,8 @@
 
 [![tests](https://github.com/bhawnamanglapm/LedgerLens1/actions/workflows/test.yml/badge.svg)](https://github.com/bhawnamanglapm/LedgerLens1/actions/workflows/test.yml)
 
+**Live demo:** https://claude.ai/artifact/JkAAGFzSJga3bhCpKa9Vk4 (runs in the browser, rules only; try **Show samples** or upload a file from `test-statements/`)
+
 LedgerLens ingests raw bank statements (digital PDF, scanned PDF, images, Excel, CSV, text), extracts every transaction, classifies it, validates the data and produces a structured credit-risk summary: a 0–1000 score, a rating band and a decision recommendation.
 
 It comes in three forms that share **one engine** (`app/engine.js`):
@@ -17,7 +19,7 @@ It comes in three forms that share **one engine** (`app/engine.js`):
 ## 1. Setup
 
 ### Hosted page
-Open the LedgerLens link (shared separately). Nothing to install. The AI step shows **Rules only** because a hosted page cannot hold an API key.
+Open https://claude.ai/artifact/JkAAGFzSJga3bhCpKa9Vk4. Nothing to install; uploaded statements stay in the browser. The AI step shows **Rules only** because a hosted page cannot hold an API key.
 
 ### Local app with the LLM (recommended for the review)
 Quickest: run `./setup.sh` (Windows: `setup.ps1`) — it checks Node, installs, creates `app/.env` and runs the tests. Or by hand:
@@ -36,9 +38,9 @@ cd app
 node cli.js ../test-statements/02_multi_month_multi_account.pdf -o out.json          # rules only
 node cli.js ../test-statements/02_multi_month_multi_account.pdf --llm -o out.json    # with Claude (needs ANTHROPIC_API_KEY)
 node cli.js ../test-statements/03b_scanned_statement.pdf -o out.json                 # scanned PDF: needs poppler (pdftoppm)
-node cli.js locked.pdf --password <pw> -o out.json
+node cli.js ../test-statements/06_password_protected.pdf --password ledger2025 -o out.json   # password-protected PDF
 node cli.js --sample flags            # built-in samples: flags | clean | jumbled
-node cli.js statement.pdf --taxonomy taxonomy-example.csv -o out.json   # custom categories (override / extend)
+node cli.js ../test-statements/02_multi_month_multi_account.pdf --taxonomy taxonomy-example.csv -o out.json   # custom categories (override / extend)
 node cli.js a.pdf b.pdf c.png         # several files / accounts in one upload
 ```
 Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped by validation (e.g. jumbled pages) · `4` `--llm` without a key.
@@ -79,14 +81,26 @@ flowchart LR
 | **Validate order** | `Page X of Y` footers checked **per file** (each upload restarts at page 1). Detects *jumbled* and *missing* pages. Without footers, dates must not run backwards between pages. Stops with a clear error. |
 | **Batch extraction** | Pages processed **3 per batch**. With the LLM on, each batch is **one model call** (see §3a); its rows replace the rule parser's only after passing the format and balance checks, and the rule parser's rows are kept as a cross-check and fallback. Header fields read per page: bank, account / card no., holder, type, currency, opening / closing balance, statement period. Pages without a header **inherit** them from the previous page / batch (and bank backwards from the next account); every inheritance is logged. Rows: table with `|`, CSV, or plain PDF text (date · [value date] · narration · amounts · balance). Single-amount rows get debit/credit from the balance movement. |
 | **Data cleaning** | Exact duplicate rows across files (overlapping statements) removed; impossible dates and rows without an amount dropped — all logged. |
-| **Enrich** | **Counterparty is mandatory**: parsed from narration formats of HDFC, ICICI, SBI, Axis, Kotak + generic UPI/NEFT/RTGS/IMPS/NACH/ECS/BBPS/card/ATM/cheque/foreign-remittance (SWIFT, TT, FIRC) patterns, with a confidence score; never blank (falls back to `UNIDENTIFIED` and always goes to the Review queue, whatever the amount, so a person names it). 41 merchant aliases (e.g. `AMZN`, `AMAZON PAY INDIA PRIVA` → AMAZON). Truncated legal names grouped (`ACME TECH PRIVATE LIMI` = `ACME TECH PVT LTD`). Attributes: loan a/c, card last 4, platform (Stripe, Apple Pay…), counterparty a/c, UPI ID, IFSC + counterparty bank (65 bank codes), UTR/RRN, cheque no., foreign amount/currency. **Currency:** each row's `currency` is the currency its debit / credit / balance are in (the account's); a foreign card spend such as `INTL TXN/USD 24.99/…` also carries `original_currency: USD` and `original_amount: 24.99`. |
-| **Classify** | Level 1 CREDIT/DEBIT; Level 2 from a built-in taxonomy of 38 categories, overridable/extendable by CSV. Order: user rules → structural rules (bounce, reversal, own-account transfer, card bill, refund, loan disbursal, salary, EMI with loan no., NACH to lender) → narration keywords (so *Tuition fee* → EDUCATION even when paid to a person) → P2P for individuals → **LLM** (one grouped model call for the rows no rule matched, answers restricted to the taxonomy's codes) → OTHER. With the LLM off, fallback keyword rules fill that slot at lower confidence and are labelled **RULE**, so `method: LLM` only appears when a model actually answered. Example override/extension file: `app/taxonomy-example.csv` (web: Taxonomy & rules → upload; CLI: `--taxonomy`). Every row stores `classification_confidence` and `method` (RULE / LLM / MANUAL). |
-| **Smart review** | Rows under the threshold (default 70%) are flagged, but only **high-impact** ones are queued: ≥ ₹10k (or 5% of income), credits ≥ ₹5k (possible income), monthly recurring (possible EMI/rent), loan-related, possible bounce. Low-impact one-offs are auto-accepted and marked. Similar rows are grouped; one decision applies to all; decisions can be saved as rules for future statements. |
+| **Enrich** | **Counterparty is mandatory**: parsed from narration formats of HDFC, ICICI, SBI, Axis, Kotak + generic UPI/NEFT/RTGS/IMPS/NACH/ECS/BBPS/card/ATM/cheque/foreign-remittance (SWIFT, TT, FIRC) patterns, with a confidence score; never blank (falls back to `UNIDENTIFIED` and always goes to the Review queue, whatever the amount, so a person names it). 39 merchant aliases (e.g. `AMZN`, `AMAZON PAY INDIA PRIVA` → AMAZON). Truncated legal names grouped (`ACME TECH PRIVATE LIMI` = `ACME TECH PVT LTD`). Attributes: loan a/c, card last 4, platform (Stripe, Apple Pay…), counterparty a/c, UPI ID, IFSC + counterparty bank (65 bank codes), UTR/RRN, cheque no., foreign amount/currency. **Currency:** each row's `currency` is the currency its debit / credit / balance are in (the account's); a foreign card spend such as `INTL TXN/USD 24.99/…` also carries `original_currency: USD` and `original_amount: 24.99`. |
+| **Classify** | Level 1 CREDIT/DEBIT; Level 2 from a built-in taxonomy of 37 categories (13 credit, 24 debit), overridable/extendable by CSV. Order: user rules → structural rules (bounce, reversal, own-account transfer, card bill, refund, loan disbursal, salary, EMI with loan no., NACH to lender) → narration keywords (so *Tuition fee* → EDUCATION even when paid to a person) → P2P for individuals → **LLM** (one grouped model call for the rows no rule matched, answers restricted to the taxonomy's codes) → OTHER. With the LLM off, fallback keyword rules fill that slot at lower confidence and are labelled **RULE**, so `method: LLM` only appears when a model actually answered. Example override/extension file: `app/taxonomy-example.csv` (web: Taxonomy & rules → upload; CLI: `--taxonomy`). Every row stores `classification_confidence` and `method` (RULE / LLM / MANUAL). |
+| **Smart review** | Rows under the threshold (default 70%) are flagged, but only **high-impact** ones are queued: ≥ ₹10k (or 5% of income), credits ≥ ₹5k (possible income), monthly recurring (possible EMI/rent), loan-related, possible bounce. Low-impact one-offs are auto-accepted and marked, except rows with no counterparty, which are always queued. Similar rows are grouped; one decision applies to all; decisions can be saved as rules for future statements. |
 | **Score** | Six weighted components → composite 0–1000, band and decision with reasons (see §4). |
 
 **Key files:** `app/engine.js` (engine — identical to the web logic, incl. the LLM layer), `app/llm.js` (model transport), `app/server.js` (backend), `app/public/` (local UI runtime + markup), `app/cli.js` (CLI), `app/test/run.js` (tests), `web/LedgerLens.dc.html` (hosted UI), `tools/` (test-statement generators).
 
 ---
+
+## 3. Key design decisions
+
+1. **Rules first, model second, human last.** Indian narrations are semi-structured (UPI/NEFT/NACH formats); deterministic rules are fast, free, explainable and auditable for a credit decision. The model only handles leftovers; humans only see what can change the decision.
+2. **Confidence + method on every field that matters.** Counterparty and category both carry a confidence; credit officers can see *how* each label was produced.
+3. **Integrity over coverage.** Balance arithmetic is checked on every row and opening + movements = closing per account. A broken balance **forces REFER** regardless of score — an OCR misread or an edited PDF must never silently produce an APPROVE.
+4. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (no verifiable income → DECLINE; FOIR > 65% → DECLINE; tampering, structuring, circular flows → REFER; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
+5. **Not every credit is income.** Income = SALARY, BUSINESS_INCOME, INTEREST, RENTAL_INCOME only. P2P receipts, refunds, reversals, loan disbursals, own-account transfers, card payments and cash deposits are excluded.
+6. **Review effort is a product constraint.** A queue nobody can finish is useless, hence materiality triage, grouping and learnable rules.
+7. **Privacy by choice.** Rules-only mode processes everything on the user's device; LLM mode sends page text only to your own backend and the model; passwords are never stored or logged.
+8. **One engine, every shell.** The same code powers the hosted page, the local app and the CLI, so the JSON from the CLI equals what the UI shows.
+9. **The model proposes, code verifies.** Every model row must pass the same balance arithmetic as the statement itself; anything that fails is retried once and otherwise replaced by the rule parser, so a model error can't change a decision silently.
 
 ## 3a. LLM integration
 
@@ -102,18 +116,6 @@ flowchart LR
 - **Visible in the app:** Ingest → AI step switch; Batch log → *Extraction* column (rows, balance check, agreement with the rule parser, or "Fallback to rules"); Transactions → method LLM with the model's reason; Activity log → every call; JSON → `run.ai` (calls, retries, fallbacks, tokens, agreement) and `extracted_by` per row.
 - **Scale:** a 100-page statement ≈ 34 extraction calls + 1–2 classification calls.
 - **Privacy:** in LLM mode page text leaves the browser for your backend and the model provider. Masking names/account numbers before the call is a next step.
-
-## 3. Key design decisions
-
-1. **Rules first, model second, human last.** Indian narrations are semi-structured (UPI/NEFT/NACH formats); deterministic rules are fast, free, explainable and auditable for a credit decision. The model only handles leftovers; humans only see what can change the decision.
-2. **Confidence + method on every field that matters.** Counterparty and category both carry a confidence; credit officers can see *how* each label was produced.
-3. **Integrity over coverage.** Balance arithmetic is checked on every row and opening + movements = closing per account. A broken balance **forces REFER** regardless of score — an OCR misread or an edited PDF must never silently produce an APPROVE.
-4. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (no verifiable income → DECLINE; FOIR > 65% → DECLINE; tampering, structuring, circular flows → REFER; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
-5. **Not every credit is income.** Income = SALARY, BUSINESS_INCOME, INTEREST, RENTAL_INCOME only. P2P receipts, refunds, reversals, loan disbursals, own-account transfers, card payments and cash deposits are excluded.
-6. **Review effort is a product constraint.** A queue nobody can finish is useless, hence materiality triage, grouping and learnable rules.
-7. **Privacy by choice.** Rules-only mode processes everything on the user's device; LLM mode sends page text only to your own backend and the model; passwords are never stored or logged.
-8. **One engine, every shell.** The same code powers the hosted page, the local app and the CLI, so the JSON from the CLI equals what the UI shows.
-9. **The model proposes, code verifies.** Every model row must pass the same balance arithmetic as the statement itself; anything that fails is retried once and otherwise replaced by the rule parser, so a model error can't change a decision silently.
 
 ---
 
@@ -165,7 +167,7 @@ All 22 results are included in the JSON output (`data_validation`).
 
 ## 6. Test data & results
 
-All test statements are **synthetic** (generated with ReportLab / Pillow by the scripts in `tools/`) using realistic Indian narration formats; no real customer data is used.
+All test statements are **synthetic**, using realistic Indian narration formats; no real customer data is used. The PDFs and scans are generated with ReportLab / Pillow by the scripts in `tools/`; `03c` is `03a` saved as JPEG (ImageMagick), `06` is `01` encrypted (pypdf), and the two CSV exports were written by hand.
 
 | File | What it tests | Pages / accounts / txns | Result | Review items | Validation (pass / warn / fail / n.a.) |
 |---|---|---|---|---|---|
@@ -208,7 +210,7 @@ One synthetic 3-month statement per decision and error path, generated by `tools
 
 The mock is a **test double, not a model**: it answers in the exact tool format so plumbing and guardrails are tested offline. The real API path was also checked against a local fake of the Messages API (headers, forced tool, temperature 0, 529 retry, tool_use parsing).
 
-Sample outputs (transactions + credit risk summary + validation) are in `sample-output/*.output.json` (rules mode; LLM runs add `run.ai` and `extracted_by`). Schema: `ledgerlens.bsa.v1` — `run`, `accounts`, `data_validation`, `transactions[]`, `credit_risk_summary{composite_score, rating_band, decision, decision_reasons, components[], metrics{income_stability, debt_service, liquidity, banking_behaviour, fraud_indicators, expense_management}}`.
+Sample outputs (transactions + credit risk summary + validation) are in `sample-output/*.output.json` and `sample-output/scenarios/` (rules mode; LLM runs add `run.ai` and `extracted_by`). Schema: `ledgerlens.bsa.v1` — `run`, `accounts`, `data_validation`, `transactions[]`, `credit_risk_summary{composite_score, rating_band, decision, decision_reasons, components[], metrics{income_stability, debt_service, liquidity, banking_behaviour, fraud_indicators, expense_management}}`.
 
 ### Limitations observed with the test data
 - **OCR digit errors are real and are caught.** Running the scanned PDF through the CLI (poppler 200 dpi render) misread `1,532.40` as `1,632.40` on one row. Checks 14 and 15 failed and the decision was forced to **REFER** (906) instead of APPROVE — the intended safety behaviour. The browser render of the same file read every row correctly (966). At 300 dpi the CLI lost 5 rows, so 200 dpi is the default.
