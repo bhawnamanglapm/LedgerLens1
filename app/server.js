@@ -51,6 +51,11 @@ const BLOBS = {
   '293a34e08997121e4ecd7b38825d3e7e': () => nm('xlsx/dist/xlsx.full.min.js'),
   '028b2e7e80ab2afb0d561411fbeed0e6': () => ({ b64: nm('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz') })
 };
+// example statements offered under Ingest → Show samples (only files in test-statements/ and its scenarios/ folder)
+const SAMPLES = {}; const SAMPLE_TYPES = { '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.csv': 'text/csv' };
+for (const dir of ['../test-statements', '../test-statements/scenarios']) {
+  try { fs.readdirSync(path.join(__dirname, dir)).forEach((f) => { if (SAMPLE_TYPES[path.extname(f).toLowerCase()]) SAMPLES[f] = path.join(__dirname, dir, f); }); } catch (e) {}
+}
 const b64cache = {};
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.json': 'application/json' };
 
@@ -84,6 +89,8 @@ const server = http.createServer((req, res) => {
   if (url === '/dc.js') return file(res, path.join(__dirname, 'public/dc.js'));
   if (url === '/markup.html') return file(res, path.join(__dirname, 'public/markup.html'));
   if (url === '/engine.js') return file(res, path.join(__dirname, 'engine.js'));
+  const sm = /^\/samples\/([\w.\-]+)$/.exec(url);
+  if (sm && SAMPLES[sm[1]]) return file(res, SAMPLES[sm[1]], SAMPLE_TYPES[path.extname(sm[1]).toLowerCase()]);
   const m = /^\/_blob\/([0-9a-f]{32})$/.exec(url);
   if (m && BLOBS[m[1]]) {
     const t = BLOBS[m[1]]();

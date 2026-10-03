@@ -284,7 +284,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
 <button type="button" onClick="{{runSample}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Applicant with risk flags</button>
 <span style="font-size:12.5px;color:#30343B">Problems built in: a missed home-loan EMI with a bounce charge, a card late-payment fee, a new loan and its EMI, three cash deposits just under ₹50,000, ₹75,000 moved in and out within a day, and unclear rows like “MR K” and “TRF/MISC”.</span>
-<span style="font-size:12px;font-weight:600;color:#6B3FC4">Expected: 777 / 1000 · Good → REFER · 7 items in Review queue</span>
+<span style="font-size:12px;font-weight:600;color:#6B3FC4">Expected: 777 / 1000 · Good → REFER · 6 items in Review queue</span>
 </div>
 <div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
 <button type="button" onClick="{{runClean}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Clean salaried applicant</button>
@@ -296,6 +296,19 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <span style="font-size:12.5px;color:#30343B">The same statement with pages 4 and 5 swapped, to show the page-order check in action.</span>
 <span style="font-size:12px;font-weight:600;color:#B42318">Expected: Stops at “Validate page order” with a “Pages appear jumbled” error</span>
 </div>
+</div>
+<div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58;margin-top:6px">EXAMPLE STATEMENTS — REAL FILES, ONE PER SCENARIO</div>
+<p style="margin:0;font-size:12.5px;color:#30343B">These run the actual test files (PDF, scan, CSV) through the full pipeline, exactly like an upload. The same files are in the project's <span class="mono">test-statements/</span> folder.</p>
+<sc-if value="{{hasExampleMsg}}" hint-placeholder-val="{{false}}"><div role="status" style="border:1px solid #F0C2BD;background:#FDF3F2;color:#7A1F16;border-radius:6px;padding:10px 14px;font-size:12.5px">{{exampleMsg}}</div></sc-if>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px">
+<sc-for list="{{examples}}" as="e" hint-placeholder-count="6">
+<div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
+<button type="button" onClick="{{e.run}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">{{e.label}}</button>
+<span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-all">{{e.file}}</span>
+<span style="font-size:12.5px;color:#30343B">{{e.desc}}</span>
+<span style="font-size:12px;font-weight:600;{{e.style}}">Expected: {{e.expected}}</span>
+</div>
+</sc-for>
 </div>
 </div>
 </sc-if>
@@ -1151,6 +1164,40 @@ class Component extends DCLogic {
     let out = pages.map((p, i) => ({ n: i + 1, text: (p.head ? p.head + '\n\n' : '') + TH + '\n' + p.body.join('\n') + '\n\nPage ' + (i + 1) + ' of ' + N }));
     if (variant === 'jumbled') { const t = out[3]; out[3] = out[4]; out[4] = t; }
     return out.map((p, i) => ({ index: i + 1, text: p.text, chars: p.text.length }));
+  }
+
+  // ---------- example statements (the files in test-statements/, served next to the page as samples/<file>) ----------
+  exampleFiles() {
+    const E = (file, label, desc, expected, tone) => ({ file, label, desc, expected, tone });
+    return [
+      E('01_single_month_digital.pdf', 'Single-month digital PDF', 'One month, plain-text columns, mixed HDFC / SBI / ICICI / Axis / Kotak narrations; page 2 has no header.', '32 txns · 966 · Excellent → APPROVE', 'APPROVE'),
+      E('02_multi_month_multi_account.pdf', 'Multi-month, three accounts', 'Jan–Mar 2025, individual + joint + credit card in one PDF, with an EMI bounce, structuring and a circular flow.', '120 txns · 777 · Good → REFER', 'REFER'),
+      E('03c_scanned_page1.jpg', 'Scanned page (JPG, OCR)', 'A photographed page with noise, blur and a slight skew, read by OCR in the browser (first use downloads about 7 MB).', '18 txns · 959 · Excellent → APPROVE', 'APPROVE'),
+      E('04_csv_export_jan2025.csv', 'Bank CSV export', 'A bank\'s CSV download with header rows and quoted amounts.', '32 txns · 966 · Excellent → APPROVE', 'APPROVE'),
+      E('05_remittances_feb2025.csv', 'Foreign remittances', 'Inward and outward SWIFT / TT / FIRC remittances, tuition sent abroad and an insurance premium.', '9 txns · 937 · Excellent → APPROVE · channel REMITTANCE', 'APPROVE'),
+      E('06_password_protected.pdf', 'Password-protected PDF', 'The single-month statement, encrypted. When asked, enter the password ledger2025.', 'Asks for a password → 966 · APPROVE', 'APPROVE'),
+      E('07_clean_salaried_approve.pdf', 'Clean salaried applicant', 'Steady salary, one home-loan EMI (FOIR 22%), ordinary spending.', '970 · Excellent → APPROVE', 'APPROVE'),
+      E('08_emi_bounce_conditions.pdf', 'EMI bounce', 'February EMI bounced with a return charge, then paid on re-presentation.', '888 → APPROVE WITH CONDITIONS', 'COND'),
+      E('09_high_foir_decline.pdf', 'High FOIR', 'Two EMIs take 73% of the salary.', '853 · Excellent → DECLINE (FOIR above 65%)', 'DECLINE'),
+      E('10_no_income_decline.pdf', 'No verifiable income', 'Money comes in only from friends (P2P); late fees.', '538 · Below Average → DECLINE', 'DECLINE'),
+      E('11_tampered_balance_refer.pdf', 'Edited balance (tampering)', 'One printed balance was changed by +₹10,000.', '910 → REFER · balance check fails', 'REFER'),
+      E('12_jumbled_pages_error.pdf', 'Jumbled pages (real PDF)', 'Pages 2 and 3 are in the wrong order.', 'Stops: “Pages appear jumbled … Page 3 of 4”', 'STOP'),
+      E('13_cheques_review.pdf', 'Cheques', 'Six cheque formats: payee printed, self cheque, payee not printed; plus a transfer with no name.', '952 → APPROVE · channel CHEQUE · 4 rows in Review queue', 'APPROVE')
+    ];
+  }
+  async runExample(e) {
+    this.setState({ exampleMsg: '' });
+    let file;
+    try {
+      const r = await fetch('samples/' + encodeURIComponent(e.file));
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      file = new File([await r.blob()], e.file, { type: r.headers.get('content-type') || '' });
+    } catch (err) {
+      this.setState({ exampleMsg: 'Could not load ' + e.file + ' here (' + (err.message || err) + '). Download it from the project\'s test-statements folder and upload it instead.' });
+      return;
+    }
+    this.log('USER', 'Ingest', 'Example statement selected: ' + e.file);
+    await this.handleFiles([file]);
   }
 
   // ---------- page conversion (PDF/text) ----------
@@ -2937,6 +2984,8 @@ class Component extends DCLogic {
       runSample: () => this.runPipeline(this.genSample('flags'), 'sample_rohan_mehta_Q1-2025.pdf (12 pages, 3 accounts)'),
       runClean: () => this.runPipeline(this.genSample('clean'), 'sample_clean_salaried_Q1-2025.pdf (12 pages, 3 accounts)'),
       runJumbled: () => this.runPipeline(this.genSample('jumbled'), 'sample_jumbled_pages.pdf (pages 4 and 5 swapped)'),
+      examples: this.exampleFiles().map((e) => ({ ...e, style: 'color:' + ({ APPROVE: '#1E7B45', COND: '#8A6400', DECLINE: '#B42318', REFER: '#6B3FC4', STOP: '#B42318' }[e.tone] || '#30343B'), run: () => this.runExample(e) })),
+      hasExampleMsg: !!s.exampleMsg, exampleMsg: s.exampleMsg || '',
       nTx: T.length, nAcc: s.accounts.length, nMonths: monthsAll.length, nFlag: flagged.length, avgConf: Math.round(avgConf * 100) + '%',
       nRule: methodCount('RULE'), nLlm: methodCount('LLM'), nManual: methodCount('MANUAL'),
       acctOpts, monthOpts, fAcct: s.fAcct, fMonth: s.fMonth, fFlag: s.fFlag, rows, nRows: rows.length,

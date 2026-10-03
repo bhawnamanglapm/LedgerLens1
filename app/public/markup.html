@@ -284,7 +284,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
 <button type="button" onClick="{{runSample}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Applicant with risk flags</button>
 <span style="font-size:12.5px;color:#30343B">Problems built in: a missed home-loan EMI with a bounce charge, a card late-payment fee, a new loan and its EMI, three cash deposits just under ₹50,000, ₹75,000 moved in and out within a day, and unclear rows like “MR K” and “TRF/MISC”.</span>
-<span style="font-size:12px;font-weight:600;color:#6B3FC4">Expected: 777 / 1000 · Good → REFER · 7 items in Review queue</span>
+<span style="font-size:12px;font-weight:600;color:#6B3FC4">Expected: 777 / 1000 · Good → REFER · 6 items in Review queue</span>
 </div>
 <div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
 <button type="button" onClick="{{runClean}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">Clean salaried applicant</button>
@@ -296,6 +296,19 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <span style="font-size:12.5px;color:#30343B">The same statement with pages 4 and 5 swapped, to show the page-order check in action.</span>
 <span style="font-size:12px;font-weight:600;color:#B42318">Expected: Stops at “Validate page order” with a “Pages appear jumbled” error</span>
 </div>
+</div>
+<div style="font-size:11px;letter-spacing:.06em;font-weight:600;color:#4A4F58;margin-top:6px">EXAMPLE STATEMENTS — REAL FILES, ONE PER SCENARIO</div>
+<p style="margin:0;font-size:12.5px;color:#30343B">These run the actual test files (PDF, scan, CSV) through the full pipeline, exactly like an upload. The same files are in the project's <span class="mono">test-statements/</span> folder.</p>
+<sc-if value="{{hasExampleMsg}}" hint-placeholder-val="{{false}}"><div role="status" style="border:1px solid #F0C2BD;background:#FDF3F2;color:#7A1F16;border-radius:6px;padding:10px 14px;font-size:12.5px">{{exampleMsg}}</div></sc-if>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px">
+<sc-for list="{{examples}}" as="e" hint-placeholder-count="6">
+<div style="border:1px solid #DAD8D2;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;background:#FAFAF7;min-width:0">
+<button type="button" onClick="{{e.run}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 14px;width:100%;text-align:left;min-height:44px;font-weight:600;cursor:pointer">{{e.label}}</button>
+<span class="mono" style="font-size:11px;color:#4A4F58;word-break:break-all">{{e.file}}</span>
+<span style="font-size:12.5px;color:#30343B">{{e.desc}}</span>
+<span style="font-size:12px;font-weight:600;{{e.style}}">Expected: {{e.expected}}</span>
+</div>
+</sc-for>
 </div>
 </div>
 </sc-if>

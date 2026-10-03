@@ -167,6 +167,40 @@ class Component extends DCLogic {
     return out.map((p, i) => ({ index: i + 1, text: p.text, chars: p.text.length }));
   }
 
+  // ---------- example statements (the files in test-statements/, served next to the page as samples/<file>) ----------
+  exampleFiles() {
+    const E = (file, label, desc, expected, tone) => ({ file, label, desc, expected, tone });
+    return [
+      E('01_single_month_digital.pdf', 'Single-month digital PDF', 'One month, plain-text columns, mixed HDFC / SBI / ICICI / Axis / Kotak narrations; page 2 has no header.', '32 txns · 966 · Excellent → APPROVE', 'APPROVE'),
+      E('02_multi_month_multi_account.pdf', 'Multi-month, three accounts', 'Jan–Mar 2025, individual + joint + credit card in one PDF, with an EMI bounce, structuring and a circular flow.', '120 txns · 777 · Good → REFER', 'REFER'),
+      E('03c_scanned_page1.jpg', 'Scanned page (JPG, OCR)', 'A photographed page with noise, blur and a slight skew, read by OCR in the browser (first use downloads about 7 MB).', '18 txns · 959 · Excellent → APPROVE', 'APPROVE'),
+      E('04_csv_export_jan2025.csv', 'Bank CSV export', 'A bank\'s CSV download with header rows and quoted amounts.', '32 txns · 966 · Excellent → APPROVE', 'APPROVE'),
+      E('05_remittances_feb2025.csv', 'Foreign remittances', 'Inward and outward SWIFT / TT / FIRC remittances, tuition sent abroad and an insurance premium.', '9 txns · 937 · Excellent → APPROVE · channel REMITTANCE', 'APPROVE'),
+      E('06_password_protected.pdf', 'Password-protected PDF', 'The single-month statement, encrypted. When asked, enter the password ledger2025.', 'Asks for a password → 966 · APPROVE', 'APPROVE'),
+      E('07_clean_salaried_approve.pdf', 'Clean salaried applicant', 'Steady salary, one home-loan EMI (FOIR 22%), ordinary spending.', '970 · Excellent → APPROVE', 'APPROVE'),
+      E('08_emi_bounce_conditions.pdf', 'EMI bounce', 'February EMI bounced with a return charge, then paid on re-presentation.', '888 → APPROVE WITH CONDITIONS', 'COND'),
+      E('09_high_foir_decline.pdf', 'High FOIR', 'Two EMIs take 73% of the salary.', '853 · Excellent → DECLINE (FOIR above 65%)', 'DECLINE'),
+      E('10_no_income_decline.pdf', 'No verifiable income', 'Money comes in only from friends (P2P); late fees.', '538 · Below Average → DECLINE', 'DECLINE'),
+      E('11_tampered_balance_refer.pdf', 'Edited balance (tampering)', 'One printed balance was changed by +₹10,000.', '910 → REFER · balance check fails', 'REFER'),
+      E('12_jumbled_pages_error.pdf', 'Jumbled pages (real PDF)', 'Pages 2 and 3 are in the wrong order.', 'Stops: “Pages appear jumbled … Page 3 of 4”', 'STOP'),
+      E('13_cheques_review.pdf', 'Cheques', 'Six cheque formats: payee printed, self cheque, payee not printed; plus a transfer with no name.', '952 → APPROVE · channel CHEQUE · 4 rows in Review queue', 'APPROVE')
+    ];
+  }
+  async runExample(e) {
+    this.setState({ exampleMsg: '' });
+    let file;
+    try {
+      const r = await fetch('samples/' + encodeURIComponent(e.file));
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      file = new File([await r.blob()], e.file, { type: r.headers.get('content-type') || '' });
+    } catch (err) {
+      this.setState({ exampleMsg: 'Could not load ' + e.file + ' here (' + (err.message || err) + '). Download it from the project\'s test-statements folder and upload it instead.' });
+      return;
+    }
+    this.log('USER', 'Ingest', 'Example statement selected: ' + e.file);
+    await this.handleFiles([file]);
+  }
+
   // ---------- page conversion (PDF/text) ----------
   async ocrEngine() {
     if (this._ocrP) return this._ocrP;
@@ -1951,6 +1985,8 @@ class Component extends DCLogic {
       runSample: () => this.runPipeline(this.genSample('flags'), 'sample_rohan_mehta_Q1-2025.pdf (12 pages, 3 accounts)'),
       runClean: () => this.runPipeline(this.genSample('clean'), 'sample_clean_salaried_Q1-2025.pdf (12 pages, 3 accounts)'),
       runJumbled: () => this.runPipeline(this.genSample('jumbled'), 'sample_jumbled_pages.pdf (pages 4 and 5 swapped)'),
+      examples: this.exampleFiles().map((e) => ({ ...e, style: 'color:' + ({ APPROVE: '#1E7B45', COND: '#8A6400', DECLINE: '#B42318', REFER: '#6B3FC4', STOP: '#B42318' }[e.tone] || '#30343B'), run: () => this.runExample(e) })),
+      hasExampleMsg: !!s.exampleMsg, exampleMsg: s.exampleMsg || '',
       nTx: T.length, nAcc: s.accounts.length, nMonths: monthsAll.length, nFlag: flagged.length, avgConf: Math.round(avgConf * 100) + '%',
       nRule: methodCount('RULE'), nLlm: methodCount('LLM'), nManual: methodCount('MANUAL'),
       acctOpts, monthOpts, fAcct: s.fAcct, fMonth: s.fMonth, fFlag: s.fFlag, rows, nRows: rows.length,

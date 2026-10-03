@@ -206,6 +206,19 @@ function runCli(file, env, extra) {
   let jb = 0, jerr = ''; try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js'), path.join(TS, 'scenarios', '12_jumbled_pages_error.pdf'), '-o', path.join(os.tmpdir(), 'll_jb.json')], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' } }); } catch (e) { jb = e.status; jerr = String(e.stderr || ''); }
   ok(jb === 3 && /Pages appear jumbled: position 2 in the file carries footer "Page 3 of 4"/.test(jerr), '12_jumbled_pages_error.pdf (real PDF, pages 2 and 3 swapped) → stops: "Pages appear jumbled … Page 3 of 4"');
 
+  console.log('\n10 · example statements offered in the app (Ingest → Show samples)');
+  const exs = new C({}).exampleFiles(); const where = (f) => [path.join(TS, f), path.join(TS, 'scenarios', f)].find((x) => fs.existsSync(x));
+  ok(exs.length === 13 && exs.every((e) => where(e.file)), 'all ' + exs.length + ' example files exist in test-statements/ (served as samples/<file>)');
+  const bad = [];
+  for (const e of exs) {
+    let code = 0, j = null, err = ''; const out = path.join(os.tmpdir(), 'll_ex_' + process.pid + '.json');
+    try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js'), where(e.file), '-o', out].concat(/password/.test(e.file) ? ['--password', 'ledger2025'] : []), { env: { ...process.env, LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' }, stdio: ['ignore', 'ignore', 'pipe'], timeout: 240000 }); j = JSON.parse(fs.readFileSync(out, 'utf8')); } catch (x) { code = x.status; err = String(x.stderr || ''); }
+    const R = j && j.credit_risk_summary;
+    const good = e.tone === 'STOP' ? code === 3 && /Pages appear jumbled/.test(err) : !!R && e.expected.indexOf(String(R.composite_score)) >= 0 && e.expected.indexOf(R.decision) >= 0 && (!/txns/.test(e.expected) || e.expected.indexOf(j.transactions.length + ' txns') >= 0);
+    if (!good) bad.push(e.file + ' (' + (R ? j.transactions.length + ' txns · ' + R.composite_score + ' · ' + R.decision : 'exit ' + code) + ')');
+  }
+  ok(!bad.length, 'every example\'s "Expected" text in the app matches a real run of its file', bad.join(' | '));
+
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
   process.exit(0);
