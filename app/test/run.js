@@ -186,6 +186,26 @@ function runCli(file, env, extra) {
   ok(v.code === 0 && v.j.transactions.length === 32 && v.j.credit_risk_summary.composite_score === 966 && v.j.data_validation.summary.failed === 0, 'same statement uploaded twice (overlap) → all 32 duplicates removed, still 966 · APPROVE, 0 failed checks');
   fs.rmSync(tmpd, { recursive: true, force: true });
 
+  console.log('\n9 · scenario statements (test-statements/scenarios)');
+  const SCN = {
+    '07_clean_salaried_approve.pdf': { n: 30, decision: 'APPROVE', why: /maps to APPROVE/ },
+    '08_emi_bounce_conditions.pdf': { n: 27, decision: 'APPROVE WITH CONDITIONS', why: /EMI bounce/ },
+    '09_high_foir_decline.pdf': { n: 15, decision: 'DECLINE', why: /FOIR above 65%/ },
+    '10_no_income_decline.pdf': { n: 18, decision: 'DECLINE', why: /No verifiable income/ },
+    '11_tampered_balance_refer.pdf': { n: 30, decision: 'REFER', why: /possible tampering/ },
+    '13_cheques_review.pdf': { n: 28, decision: 'APPROVE', why: /./ }
+  };
+  for (const [f, e] of Object.entries(SCN)) {
+    const j = runCli('scenarios/' + f, { LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' }, []); const R = j.credit_risk_summary || {};
+    ok(j.transactions && j.transactions.length === e.n && R.decision === e.decision && R.decision_reasons.some((w) => e.why.test(w)), f + ' → ' + (j.transactions || []).length + ' txns · ' + R.composite_score + ' · ' + R.rating_band + ' · ' + R.decision, JSON.stringify(R.decision_reasons));
+    if (f === '13_cheques_review.pdf') {
+      const ch = j.transactions.filter((t) => t.channel === 'CHEQUE'); const cp = (re) => (j.transactions.find((t) => re.test(t.narration)) || {}).counterparty;
+      ok(ch.length === 6 && cp(/000452/) === 'MEHTA & SONS' && cp(/000123/) === 'VIKRAM ENTERPRISES' && cp(/^CLG CHQ 000454/) === 'Cheque counterparty (not printed)' && j.transactions.filter((t) => /not printed|UNIDENTIFIED/.test(t.counterparty)).every((t) => t.review.flagged), 'cheques: 6 rows on channel CHEQUE, payees read ("MEHTA & SONS" keeps its &), rows with no payee / counterparty go to review');
+    }
+  }
+  let jb = 0, jerr = ''; try { execFileSync(process.execPath, [path.join(ROOT, 'cli.js'), path.join(TS, 'scenarios', '12_jumbled_pages_error.pdf'), '-o', path.join(os.tmpdir(), 'll_jb.json')], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, LLM_PROVIDER: '', ANTHROPIC_API_KEY: '' } }); } catch (e) { jb = e.status; jerr = String(e.stderr || ''); }
+  ok(jb === 3 && /Pages appear jumbled: position 2 in the file carries footer "Page 3 of 4"/.test(jerr), '12_jumbled_pages_error.pdf (real PDF, pages 2 and 3 swapped) → stops: "Pages appear jumbled … Page 3 of 4"');
+
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
   process.exit(0);

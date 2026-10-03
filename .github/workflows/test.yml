@@ -19,7 +19,7 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
       - run: npm ci
-      # 81 checks: LLM guardrails, every test statement incl. PNG and JPG scans (rules / mock LLM / deliberately wrong LLM),
-      # page order, classification rules, remittances, credit-risk decisions, data validation / bad files, taxonomy CSV, missing counterparty → review, cheque parsing, foreign-currency fields, a 102-page statement.
+      # 89 checks: LLM guardrails, every test statement incl. PNG and JPG scans (rules / mock LLM / deliberately wrong LLM),
+      # page order, classification rules, remittances, credit-risk decisions, data validation / bad files, scenario statements, taxonomy CSV, missing counterparty → review, cheque parsing, foreign-currency fields, a 102-page statement.
       # Uses the offline test double — no API key, no cost.
       - run: npm test

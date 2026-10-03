@@ -430,7 +430,7 @@ class Component extends DCLogic {
       const re = new RegExp('^' + DT + '\\s+(?:' + DT + '\\s+)?(.*)$');
       const m = line.match(re);
       if (m && this.parseDate(m[1])) {
-        const rest = m[3].replace(/\s[^\w\s₹/]{1,2}(?=\s|$)/g, ' ').replace(/\s+$/, ''); // drop stray OCR specks between columns
+        const rest = m[3].replace(/\s[^\w\s₹/&]{1,2}(?=\s|$)/g, ' ').replace(/\s+$/, ''); // drop stray OCR specks between columns (keep "&" in names like MEHTA & SONS)
         // only the amounts at the END of the line are debit / credit / balance; numbers inside the narration (e.g. "USD 24.99/…") are ignored
         const tail = rest.match(/((?:\s+-?[\d,]+\.\d{2}(?:\s*(?:Cr|Dr|CR|DR)\b)?){1,3})\s*$/);
         const nums = tail ? (tail[1].match(/-?[\d,]+\.\d{2}(?:\s*(?:Cr|Dr|CR|DR)\b)?/g) || []) : [];

@@ -1,0 +1,1087 @@
+{
+  "schema": "ledgerlens.bsa.v1",
+  "generated_at": "2026-10-03T00:09:12.128Z",
+  "run": {
+    "id": 1,
+    "source": "10_no_income_decline.pdf",
+    "pages": 2,
+    "batches": [
+      {
+        "batch": 1,
+        "pages": "1–2",
+        "rows": 18,
+        "accounts": "…6664",
+        "metadata_inherited": "account no., bank, currency → pages 2 have no header",
+        "llm": "LLM off — rule parser"
+      }
+    ],
+    "ai": {
+      "mode": "rules",
+      "model": null,
+      "note": "No LLM backend connected for this run — rule parser and keyword stand-in used"
+    }
+  },
+  "accounts": [
+    {
+      "account_number": "50100555566664",
+      "bank": "MERIDIAN BANK",
+      "holder": "KARAN BHATIA",
+      "account_type": "Savings - Individual",
+      "is_credit_card": false,
+      "currency": "INR",
+      "opening_balance": 30000,
+      "closing_balance": 27750,
+      "statement_period": {
+        "from": "2025-01-01",
+        "to": "2025-03-31"
+      },
+      "pages": [
+        1,
+        2
+      ],
+      "entered_manually": []
+    }
+  ],
+  "data_validation": {
+    "summary": {
+      "total": 22,
+      "passed": 17,
+      "warnings": 1,
+      "failed": 0,
+      "not_applicable": 4
+    },
+    "checks": [
+      {
+        "id": 1,
+        "group": "On upload",
+        "check": "Password-protected PDF",
+        "status": "N/A",
+        "result": "No password needed",
+        "rule": "Locked PDFs are detected; you enter the password, which is used once in the browser and never stored or logged.",
+        "on_fail": "Upload pauses until the right password is entered; a wrong password shows an error."
+      },
+      {
+        "id": 2,
+        "group": "On upload",
+        "check": "Empty file",
+        "status": "PASS",
+        "result": "All files have content",
+        "rule": "Files of 0 bytes are rejected.",
+        "on_fail": "Upload stops with a message naming the file."
+      },
+      {
+        "id": 3,
+        "group": "On upload",
+        "check": "Scanned PDF / image detected",
+        "status": "N/A",
+        "result": "Digital text — OCR not needed",
+        "rule": "Pages with no text layer, and PNG / JPG images, are sent to OCR automatically.",
+        "on_fail": "Not a failure — the page is read by OCR instead."
+      },
+      {
+        "id": 4,
+        "group": "On upload",
+        "check": "OCR engine available",
+        "status": "N/A",
+        "result": "Not needed for this run",
+        "rule": "Before OCR, the browser is checked for background workers, script loading, WebAssembly and in-memory data.",
+        "on_fail": "Clear error naming what is blocked; digital PDFs, Excel, CSV and text still work."
+      },
+      {
+        "id": 5,
+        "group": "On upload",
+        "check": "Transactions found",
+        "status": "PASS",
+        "result": "18 transaction(s) recognised",
+        "rule": "At least one row with a date and an amount must be recognised.",
+        "on_fail": "Run stops: “No transaction rows were recognised”."
+      },
+      {
+        "id": 6,
+        "group": "File",
+        "check": "Supported type, size and page limits",
+        "status": "PASS",
+        "result": "PDF / image / Excel / CSV / text · ≤ 25 MB · ≤ 300 pages",
+        "rule": "PDF, PNG / JPG, Excel, CSV or text; ≤ 25 MB per file; ≤ 300 pages per PDF.",
+        "on_fail": "Upload stops with advice to split or compress the file."
+      },
+      {
+        "id": 7,
+        "group": "File",
+        "check": "Duplicate files in the upload",
+        "status": "PASS",
+        "result": "No file selected twice",
+        "rule": "The same file (name + size) selected twice.",
+        "on_fail": "Second copy skipped; warning shown."
+      },
+      {
+        "id": 8,
+        "group": "File",
+        "check": "Readable text on every page",
+        "status": "PASS",
+        "result": "2 page(s) with text",
+        "rule": "Each page must yield some text after conversion / OCR.",
+        "on_fail": "Warning listing the blank pages."
+      },
+      {
+        "id": 9,
+        "group": "File",
+        "check": "OCR quality (scans and images)",
+        "status": "N/A",
+        "result": "No OCR needed — digital text",
+        "rule": "OCR confidence per page must be ≥ 60%.",
+        "on_fail": "Warning listing low-quality pages; expect more review items."
+      },
+      {
+        "id": 10,
+        "group": "Structure",
+        "check": "Page order",
+        "status": "PASS",
+        "result": "Checked via page-number footers (2/2 pages)",
+        "rule": "“Page X of Y” footers per file; if absent, dates must not run backwards between pages.",
+        "on_fail": "Run stops: “Pages appear jumbled” or “Page(s) missing … (missing 3, 4)”."
+      },
+      {
+        "id": 11,
+        "group": "Structure",
+        "check": "Account details present",
+        "status": "PASS",
+        "result": "1 account(s) with number, bank, holder and opening balance",
+        "rule": "Account number, bank, holder and opening balance for every account.",
+        "on_fail": "Warning plus a form to fill in the missing details."
+      },
+      {
+        "id": 12,
+        "group": "Structure",
+        "check": "Transactions inside the stated statement period",
+        "status": "PASS",
+        "result": "All rows inside the period",
+        "rule": "Every row date falls within the printed “Statement Period”.",
+        "on_fail": "Warning: possible merged or edited file."
+      },
+      {
+        "id": 13,
+        "group": "Structure",
+        "check": "Statement covers the full stated period",
+        "status": "PASS",
+        "result": "Data spans the stated period",
+        "rule": "Data starts / ends within 10 days of the stated period.",
+        "on_fail": "Warning: missing weeks can hide income or EMIs."
+      },
+      {
+        "id": 14,
+        "group": "Integrity",
+        "check": "Running balance arithmetic (every row)",
+        "status": "PASS",
+        "result": "All 18 rows reconcile",
+        "rule": "Previous balance ± amount must equal the printed balance on every row.",
+        "on_fail": "FAILED; decision forced to REFER (possible tampering)."
+      },
+      {
+        "id": 15,
+        "group": "Integrity",
+        "check": "Opening + transactions = closing balance",
+        "status": "PASS",
+        "result": "Reconciles for every account with an opening balance",
+        "rule": "Per account, opening balance plus all movements must equal the closing balance.",
+        "on_fail": "FAILED; points to deleted rows or missing pages."
+      },
+      {
+        "id": 16,
+        "group": "Integrity",
+        "check": "Duplicate transactions (overlapping statements)",
+        "status": "PASS",
+        "result": "No duplicates across files",
+        "rule": "Identical rows (account, date, narration, amount, balance) appearing in two files.",
+        "on_fail": "Duplicates removed before scoring; warning shown."
+      },
+      {
+        "id": 17,
+        "group": "Integrity",
+        "check": "Valid dates",
+        "status": "PASS",
+        "result": "All dates valid and not in the future",
+        "rule": "No dates before 2000 or in the future.",
+        "on_fail": "Bad rows dropped (usually OCR misreads); warning shown."
+      },
+      {
+        "id": 18,
+        "group": "Integrity",
+        "check": "Valid amounts",
+        "status": "PASS",
+        "result": "Every row has exactly one of debit or credit",
+        "rule": "Each row moves money one way: a debit or a credit, not both and not neither.",
+        "on_fail": "Rows without an amount dropped; rows with both flagged."
+      },
+      {
+        "id": 19,
+        "group": "Completeness",
+        "check": "No missing months / long gaps",
+        "status": "PASS",
+        "result": "No gap longer than 35 days",
+        "rule": "No account goes more than 35 days without a transaction.",
+        "on_fail": "Warning: a missing month can hide a bounce or salary gap."
+      },
+      {
+        "id": 20,
+        "group": "Completeness",
+        "check": "Enough history to score",
+        "status": "WARNING",
+        "result": "3 month(s), 18 transactions — very few transactions",
+        "rule": "At least 3 months and 20 transactions.",
+        "on_fail": "Warning: score is less reliable."
+      },
+      {
+        "id": 21,
+        "group": "Consistency",
+        "check": "Currency",
+        "status": "PASS",
+        "result": "Account currency: INR",
+        "rule": "All accounts in one currency; foreign card spends noted.",
+        "on_fail": "Warning: mixed currencies must not be added together."
+      },
+      {
+        "id": 22,
+        "group": "Consistency",
+        "check": "All accounts belong to the same applicant",
+        "status": "PASS",
+        "result": "Holder: KARAN BHATIA",
+        "rule": "Holder names across accounts match (joint accounts allowed).",
+        "on_fail": "Warning: another person’s statement would inflate income."
+      }
+    ]
+  },
+  "transactions": [
+    {
+      "id": "t0",
+      "date": "2025-01-02",
+      "value_date": "2025-01-02",
+      "account_number": "50100555566664",
+      "month": "2025-01",
+      "narration": "UPI/501212345678/RAHUL VERMA/rahulv@oksbi/loan",
+      "extracted_by": "RULE",
+      "debit": null,
+      "credit": 20000,
+      "balance": 50000,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "RAHUL VERMA",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash",
+      "channel": "UPI",
+      "attributes": {
+        "vpa": "rahulv@oksbi",
+        "rrn": "501212345678"
+      },
+      "level1": "CREDIT",
+      "level2": "P2P",
+      "category_group": "credit_others",
+      "essential": null,
+      "fixed_or_variable": null,
+      "classification_confidence": 0.84,
+      "method": "RULE",
+      "method_reason": "Transfer with an individual",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t1",
+      "date": "2025-01-06",
+      "value_date": "2025-01-06",
+      "account_number": "50100555566664",
+      "month": "2025-01",
+      "narration": "POS/XX8832/SHOPKART ONLINE",
+      "extracted_by": "RULE",
+      "debit": 14000,
+      "credit": null,
+      "balance": 36000,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "SHOPKART ONLINE",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "Card · POS slash",
+      "channel": "CARD",
+      "attributes": {
+        "card": "••8832"
+      },
+      "level1": "DEBIT",
+      "level2": "SHOPPING",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"SHOPKART\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t2",
+      "date": "2025-01-10",
+      "value_date": "2025-01-10",
+      "account_number": "50100555566664",
+      "month": "2025-01",
+      "narration": "IMPS/P2A/501012345679/ANITA DESAI/Help",
+      "extracted_by": "RULE",
+      "debit": null,
+      "credit": 10000,
+      "balance": 46000,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "ANITA DESAI",
+      "counterparty_confidence": 0.93,
+      "counterparty_format": "IMPS · slash",
+      "channel": "IMPS",
+      "attributes": {
+        "rrn": "501012345679"
+      },
+      "level1": "CREDIT",
+      "level2": "P2P",
+      "category_group": "credit_others",
+      "essential": null,
+      "fixed_or_variable": null,
+      "classification_confidence": 0.84,
+      "method": "RULE",
+      "method_reason": "Transfer with an individual",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t3",
+      "date": "2025-01-12",
+      "value_date": "2025-01-12",
+      "account_number": "50100555566664",
+      "month": "2025-01",
+      "narration": "UPI/501112340022/SPICE ROUTE CAFE/spiceroute@ybl/Dinner",
+      "extracted_by": "RULE",
+      "debit": 6000,
+      "credit": null,
+      "balance": 40000,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "SPICE ROUTE CAFE",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash",
+      "channel": "UPI",
+      "attributes": {
+        "vpa": "spiceroute@ybl",
+        "rrn": "501112340022"
+      },
+      "level1": "DEBIT",
+      "level2": "DINING",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"CAFE\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t4",
+      "date": "2025-01-20",
+      "value_date": "2025-01-20",
+      "account_number": "50100555566664",
+      "month": "2025-01",
+      "narration": "ATM WDL/S1AN2231/SECTOR 29 GURUGRAM",
+      "extracted_by": "RULE",
+      "debit": 8000,
+      "credit": null,
+      "balance": 32000,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "Self (ATM cash)",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "ATM",
+      "channel": "ATM",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "CASH_WITHDRAWAL",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"ATM WDL\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t5",
+      "date": "2025-01-26",
+      "value_date": "2025-01-26",
+      "account_number": "50100555566664",
+      "month": "2025-01",
+      "narration": "LATE PAYMENT FEE",
+      "extracted_by": "RULE",
+      "debit": 750,
+      "credit": null,
+      "balance": 31250,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "MERIDIAN BANK",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "Bank-generated",
+      "channel": "INTERNAL",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "PENALTY",
+      "category_group": "fees",
+      "essential": null,
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"LATE PAYMENT\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t6",
+      "date": "2025-02-02",
+      "value_date": "2025-02-02",
+      "account_number": "50100555566664",
+      "month": "2025-02",
+      "narration": "UPI/502212345678/RAHUL VERMA/rahulv@oksbi/loan",
+      "extracted_by": "RULE",
+      "debit": null,
+      "credit": 8000,
+      "balance": 39250,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "RAHUL VERMA",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash",
+      "channel": "UPI",
+      "attributes": {
+        "vpa": "rahulv@oksbi",
+        "rrn": "502212345678"
+      },
+      "level1": "CREDIT",
+      "level2": "P2P",
+      "category_group": "credit_others",
+      "essential": null,
+      "fixed_or_variable": null,
+      "classification_confidence": 0.84,
+      "method": "RULE",
+      "method_reason": "Transfer with an individual",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t7",
+      "date": "2025-02-06",
+      "value_date": "2025-02-06",
+      "account_number": "50100555566664",
+      "month": "2025-02",
+      "narration": "POS/XX8832/SHOPKART ONLINE",
+      "extracted_by": "RULE",
+      "debit": 9000,
+      "credit": null,
+      "balance": 30250,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "SHOPKART ONLINE",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "Card · POS slash",
+      "channel": "CARD",
+      "attributes": {
+        "card": "••8832"
+      },
+      "level1": "DEBIT",
+      "level2": "SHOPPING",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"SHOPKART\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t8",
+      "date": "2025-02-10",
+      "value_date": "2025-02-10",
+      "account_number": "50100555566664",
+      "month": "2025-02",
+      "narration": "IMPS/P2A/502012345679/ANITA DESAI/Help",
+      "extracted_by": "RULE",
+      "debit": null,
+      "credit": 12000,
+      "balance": 42250,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "ANITA DESAI",
+      "counterparty_confidence": 0.93,
+      "counterparty_format": "IMPS · slash",
+      "channel": "IMPS",
+      "attributes": {
+        "rrn": "502012345679"
+      },
+      "level1": "CREDIT",
+      "level2": "P2P",
+      "category_group": "credit_others",
+      "essential": null,
+      "fixed_or_variable": null,
+      "classification_confidence": 0.84,
+      "method": "RULE",
+      "method_reason": "Transfer with an individual",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t9",
+      "date": "2025-02-12",
+      "value_date": "2025-02-12",
+      "account_number": "50100555566664",
+      "month": "2025-02",
+      "narration": "UPI/502112340022/SPICE ROUTE CAFE/spiceroute@ybl/Dinner",
+      "extracted_by": "RULE",
+      "debit": 6000,
+      "credit": null,
+      "balance": 36250,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "SPICE ROUTE CAFE",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash",
+      "channel": "UPI",
+      "attributes": {
+        "vpa": "spiceroute@ybl",
+        "rrn": "502112340022"
+      },
+      "level1": "DEBIT",
+      "level2": "DINING",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"CAFE\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t10",
+      "date": "2025-02-20",
+      "value_date": "2025-02-20",
+      "account_number": "50100555566664",
+      "month": "2025-02",
+      "narration": "ATM WDL/S1AN2231/SECTOR 29 GURUGRAM",
+      "extracted_by": "RULE",
+      "debit": 8000,
+      "credit": null,
+      "balance": 28250,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "Self (ATM cash)",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "ATM",
+      "channel": "ATM",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "CASH_WITHDRAWAL",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"ATM WDL\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t11",
+      "date": "2025-02-26",
+      "value_date": "2025-02-26",
+      "account_number": "50100555566664",
+      "month": "2025-02",
+      "narration": "LATE PAYMENT FEE",
+      "extracted_by": "RULE",
+      "debit": 750,
+      "credit": null,
+      "balance": 27500,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "MERIDIAN BANK",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "Bank-generated",
+      "channel": "INTERNAL",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "PENALTY",
+      "category_group": "fees",
+      "essential": null,
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"LATE PAYMENT\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t12",
+      "date": "2025-03-02",
+      "value_date": "2025-03-02",
+      "account_number": "50100555566664",
+      "month": "2025-03",
+      "narration": "UPI/503212345678/RAHUL VERMA/rahulv@oksbi/loan",
+      "extracted_by": "RULE",
+      "debit": null,
+      "credit": 25000,
+      "balance": 52500,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "RAHUL VERMA",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash",
+      "channel": "UPI",
+      "attributes": {
+        "vpa": "rahulv@oksbi",
+        "rrn": "503212345678"
+      },
+      "level1": "CREDIT",
+      "level2": "P2P",
+      "category_group": "credit_others",
+      "essential": null,
+      "fixed_or_variable": null,
+      "classification_confidence": 0.84,
+      "method": "RULE",
+      "method_reason": "Transfer with an individual",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t13",
+      "date": "2025-03-06",
+      "value_date": "2025-03-06",
+      "account_number": "50100555566664",
+      "month": "2025-03",
+      "narration": "POS/XX8832/SHOPKART ONLINE",
+      "extracted_by": "RULE",
+      "debit": 16000,
+      "credit": null,
+      "balance": 36500,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "SHOPKART ONLINE",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "Card · POS slash",
+      "channel": "CARD",
+      "attributes": {
+        "card": "••8832"
+      },
+      "level1": "DEBIT",
+      "level2": "SHOPPING",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"SHOPKART\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 1,
+      "batch": 1
+    },
+    {
+      "id": "t14",
+      "date": "2025-03-10",
+      "value_date": "2025-03-10",
+      "account_number": "50100555566664",
+      "month": "2025-03",
+      "narration": "IMPS/P2A/503012345679/ANITA DESAI/Help",
+      "extracted_by": "RULE",
+      "debit": null,
+      "credit": 6000,
+      "balance": 42500,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "ANITA DESAI",
+      "counterparty_confidence": 0.93,
+      "counterparty_format": "IMPS · slash",
+      "channel": "IMPS",
+      "attributes": {
+        "rrn": "503012345679"
+      },
+      "level1": "CREDIT",
+      "level2": "P2P",
+      "category_group": "credit_others",
+      "essential": null,
+      "fixed_or_variable": null,
+      "classification_confidence": 0.84,
+      "method": "RULE",
+      "method_reason": "Transfer with an individual",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 2,
+      "batch": 1
+    },
+    {
+      "id": "t15",
+      "date": "2025-03-12",
+      "value_date": "2025-03-12",
+      "account_number": "50100555566664",
+      "month": "2025-03",
+      "narration": "UPI/503112340022/SPICE ROUTE CAFE/spiceroute@ybl/Dinner",
+      "extracted_by": "RULE",
+      "debit": 6000,
+      "credit": null,
+      "balance": 36500,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "SPICE ROUTE CAFE",
+      "counterparty_confidence": 0.95,
+      "counterparty_format": "UPI · slash",
+      "channel": "UPI",
+      "attributes": {
+        "vpa": "spiceroute@ybl",
+        "rrn": "503112340022"
+      },
+      "level1": "DEBIT",
+      "level2": "DINING",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"CAFE\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 2,
+      "batch": 1
+    },
+    {
+      "id": "t16",
+      "date": "2025-03-20",
+      "value_date": "2025-03-20",
+      "account_number": "50100555566664",
+      "month": "2025-03",
+      "narration": "ATM WDL/S1AN2231/SECTOR 29 GURUGRAM",
+      "extracted_by": "RULE",
+      "debit": 8000,
+      "credit": null,
+      "balance": 28500,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "Self (ATM cash)",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "ATM",
+      "channel": "ATM",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "CASH_WITHDRAWAL",
+      "category_group": "discretionary",
+      "essential": "discretionary",
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"ATM WDL\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 2,
+      "batch": 1
+    },
+    {
+      "id": "t17",
+      "date": "2025-03-26",
+      "value_date": "2025-03-26",
+      "account_number": "50100555566664",
+      "month": "2025-03",
+      "narration": "LATE PAYMENT FEE",
+      "extracted_by": "RULE",
+      "debit": 750,
+      "credit": null,
+      "balance": 27750,
+      "currency": "INR",
+      "original_currency": null,
+      "original_amount": null,
+      "counterparty": "MERIDIAN BANK",
+      "counterparty_confidence": 0.9,
+      "counterparty_format": "Bank-generated",
+      "channel": "INTERNAL",
+      "attributes": {},
+      "level1": "DEBIT",
+      "level2": "PENALTY",
+      "category_group": "fees",
+      "essential": null,
+      "fixed_or_variable": "variable",
+      "classification_confidence": 0.9,
+      "method": "RULE",
+      "method_reason": "Narration keyword \"LATE PAYMENT\"",
+      "review": {
+        "flagged": false,
+        "reasons": [],
+        "impact": null,
+        "auto_accepted_low_impact": false
+      },
+      "source_page": 2,
+      "batch": 1
+    }
+  ],
+  "credit_risk_summary": {
+    "customer": "KARAN BHATIA",
+    "period": {
+      "from_month": "2025-01",
+      "to_month": "2025-03",
+      "months": 3
+    },
+    "composite_score": 538,
+    "scale": "0-1000",
+    "rating_band": "Below Average",
+    "decision": "DECLINE",
+    "decision_reasons": [
+      "No verifiable income in the period (only SALARY, BUSINESS_INCOME, INTEREST and RENTAL_INCOME count) — FOIR cannot be computed",
+      "3 penalty fee(s)"
+    ],
+    "provisional": false,
+    "pending_review_items": 0,
+    "components": [
+      {
+        "component": "Income Stability",
+        "weight_pct": 25,
+        "score_0_100": 16,
+        "points": 40
+      },
+      {
+        "component": "Debt Service",
+        "weight_pct": 20,
+        "score_0_100": 60,
+        "points": 120
+      },
+      {
+        "component": "Liquidity",
+        "weight_pct": 15,
+        "score_0_100": 60,
+        "points": 90
+      },
+      {
+        "component": "Banking Behaviour",
+        "weight_pct": 10,
+        "score_0_100": 61,
+        "points": 61
+      },
+      {
+        "component": "Fraud Indicators",
+        "weight_pct": 15,
+        "score_0_100": 100,
+        "points": 150
+      },
+      {
+        "component": "Expense Management",
+        "weight_pct": 15,
+        "score_0_100": 51.5,
+        "points": 77
+      }
+    ],
+    "metrics": {
+      "income_stability": {
+        "avg_monthly_income": 0,
+        "monthly_income": [
+          {
+            "month": "2025-01",
+            "total": 0
+          },
+          {
+            "month": "2025-02",
+            "total": 0
+          },
+          {
+            "month": "2025-03",
+            "total": 0
+          }
+        ],
+        "income_by_category": [],
+        "regularity_cv_pct": 100,
+        "source_count": 0,
+        "primary_source_share_pct": 100,
+        "growth_first_to_last_pct": 0
+      },
+      "debt_service": {
+        "emi_obligations": [],
+        "monthly_emi_total": 0,
+        "foir_pct": null,
+        "emi_bounce_rate_pct": 0,
+        "on_time_payment_rate_pct": 100
+      },
+      "liquidity": {
+        "avg_eod_balance": 36077.38,
+        "min_eod_balance": 27500,
+        "negative_balance_days": 0,
+        "days_observed": 84
+      },
+      "banking_behaviour": {
+        "bounces": 0,
+        "bounce_charges": [],
+        "penalty_fees": [
+          {
+            "date": "2025-01-26",
+            "amount": 750,
+            "narration": "LATE PAYMENT FEE"
+          },
+          {
+            "date": "2025-02-26",
+            "amount": 750,
+            "narration": "LATE PAYMENT FEE"
+          },
+          {
+            "date": "2025-03-26",
+            "amount": 750,
+            "narration": "LATE PAYMENT FEE"
+          }
+        ],
+        "total_fees_and_charges": 2250,
+        "overdraft_days": 0
+      },
+      "fraud_indicators": {
+        "balance_arithmetic_breaks": 0,
+        "circular_transactions": [],
+        "overnight_pass_through": [],
+        "structuring": []
+      },
+      "expense_management": {
+        "monthly_spend": [
+          {
+            "month": "2025-01",
+            "total": 28750,
+            "essential": 0,
+            "discretionary": 28750,
+            "fixed": 0
+          },
+          {
+            "month": "2025-02",
+            "total": 23750,
+            "essential": 0,
+            "discretionary": 23750,
+            "fixed": 0
+          },
+          {
+            "month": "2025-03",
+            "total": 30750,
+            "essential": 0,
+            "discretionary": 30750,
+            "fixed": 0
+          }
+        ],
+        "essential_share_pct": 0,
+        "discretionary_share_pct": 100,
+        "fixed_share_pct": 0,
+        "variable_share_pct": 100,
+        "spend_trend_first_to_last_pct": 7,
+        "savings_rate_after_emi_pct": 0
+      }
+    }
+  }
+}
