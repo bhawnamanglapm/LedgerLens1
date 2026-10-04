@@ -83,10 +83,23 @@ module.exports = async function apiTests(ok) {
     ok(rv.items.length === 6 && rv.categories.CREDIT.includes('P2P') && wrong.status === 400 && good.status === 200 && good.j.transaction.method === 'MANUAL' && good.j.summary.pending_review === 5 && cpd.j.summary.pending_review === 4, 'API: review — 6 items listed; a DEBIT-only category on a credit is rejected; each decision re-scores (pending 6 → 5 → 4) and marks the row MANUAL');
     ok(res.version === 3 && res.versions.length === 3 && v1.output.transactions.find((x) => x.id === it.txn_id).level2 === 'OTHER_CREDIT' && tt.level2 === 'P2P' && dec.length === 2 && dec[0].decided_by === 'Analyst A' && dec[0].old_value === 'OTHER_CREDIT' && dec[0].note && dec[1].field === 'counterparty', 'API: every decision is kept (who, old → new, note) and every result version stays readable (v1 original, v3 latest)');
 
+    // ---- shared activity log (web app browsers + API jobs) ----
+    const act = (method, qs, body) => call(method, '/api/activity' + (qs || ''), null, body);
+    const ent = [1, 2, 3].map((n) => ({ seq: n, run: 1, ts: '10:00:0' + n, day: '2026-10-04', level: n === 2 ? 'WARN' : 'INFO', step: 'Extract', msg: 'event ' + n }));
+    const ap1 = await act('POST', '', { client_id: 'browserAsha01', client_name: 'Asha (credit team)', entries: ent });
+    const ap2 = await act('POST', '', { client_id: 'browserAsha01', entries: ent.concat([{ seq: 4, level: 'USER', step: 'Review', msg: 'event 4' }]) });
+    const badc = await act('POST', '', { client_id: 'x', entries: ent });
+    const g = (await act('GET', '?client=browserAsha01')).j; const gw = (await act('GET', '?client=browserAsha01&level=WARN')).j; const gall = (await act('GET', '')).j;
+    const apiRows = gall.entries.filter((e) => e.client_id === 'api-user-1');
+    ok(ap1.j.stored === 3 && ap2.j.stored === 1 && badc.status === 400 && g.total === 4 && gw.total === 1 && g.entries[0].msg === 'event 4' && gall.clients.find((c) => c.client_id === 'browserAsha01').name === 'Asha (credit team)', 'activity log: a browser\'s entries are saved on the server (re-sent entries stored once), filter by person and level, newest first, with the display name');
+    ok(apiRows.some((e) => /Job #\d+ queued/.test(e.msg)) && apiRows.some((e) => /Job #\d+ done in .* 777\/1000/.test(e.msg)) && apiRows.some((e) => /Review/.test(e.step) && /OTHER_CREDIT → P2P/.test(e.msg)) && gall.clients.find((c) => c.client_id === 'api-user-1').name === 'Analyst A (API)', 'activity log: API jobs and review decisions are written to the same shared log under the API user\'s name');
+    const del = await act('DELETE', '?client_id=browserAsha01');
+    ok(del.j.deleted === 4 && (await act('GET', '?client=browserAsha01')).j.total === 0 && (await act('POST', '', { client_id: 'browserAsha01', entries: [{ seq: 5, level: 'INFO', step: 'Ingest', msg: 'after clear' }] })).j.stored === 1, 'activity log: "Clear my history" deletes only that browser\'s entries; new entries are saved again afterwards');
+
     // ---- restarts ----
     await stop(); await start();
     const after = (await call('GET', '/api/v1/jobs/' + aIds[0] + '/result', A)).j;
-    ok(after && after.version === 3 && (await call('GET', '/api/v1/jobs', A)).j.jobs.length === 7, 'API: after a server restart, tokens, jobs, results and review versions are all still there');
+    ok(after && after.version === 3 && (await call('GET', '/api/v1/jobs', A)).j.jobs.length === 7 && (await call('GET', '/api/activity?client=browserAsha01')).j.total === 1, 'API: after a server restart, tokens, jobs, results, review versions and the shared activity log are all still there');
     const slow = await analyze(A, '03c_scanned_page1.jpg'); // OCR takes a few seconds
     for (let i = 0; i < 100; i++) { if ((await call('GET', '/api/v1/jobs/' + slow, A)).j.job.status === 'running') break; await sleep(50); }
     await stop(); await start();

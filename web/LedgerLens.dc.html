@@ -793,12 +793,26 @@ Page 1 of 12</pre></div>
 </div>
 
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<sc-if value="{{actOn}}" hint-placeholder-val="{{false}}">
+<div style="padding:12px 18px;border-bottom:1px solid #E4E1DA;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;background:#FAFAF7">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">SHOW</span>
+<div role="group" aria-label="Whose activity to show" style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{logSourceBtns}}" as="b" hint-placeholder-count="2"><button type="button" onClick="{{b.go}}" aria-pressed="{{b.pressed}}" style="{{b.style}}; border-width:1px; border-style:solid; border-radius:4px; padding:6px 12px; min-height:44px; font-size:12.5px; font-weight:600; cursor:pointer">{{b.l}} <span class="mono" style="font-weight:400">{{b.n}}</span></button></sc-for>
+</div></div>
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><label for="lname" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">YOUR NAME IN THE SHARED LOG</label>
+<input id="lname" type="text" value="{{clientName}}" onChange="{{setClientName}}" placeholder="e.g. Asha (credit team)" maxlength="60" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;width:260px;max-width:100%;box-sizing:border-box"></div>
+</div>
+</sc-if>
 <div style="padding:16px 18px;border-bottom:1px solid #E4E1DA;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
-<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Activity log <span class="mono" style="font-weight:400;font-size:12px;color:#4A4F58">· newest first · {{nEntries}} shown of {{nLog}}</span></h2><span style="font-size:11.5px;color:#4A4F58">History is kept across runs and reloads in this browser (last 2,000 events).</span></div>
-<div style="display:flex;flex-direction:column;gap:4px"><label for="lr" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">RUN</label>
+<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Activity log <span class="mono" style="font-weight:400;font-size:12px;color:#4A4F58">· newest first · {{nEntries}} shown of {{nLog}}</span></h2><span style="font-size:11.5px;color:#4A4F58;max-width:70ch">{{logScope}}</span></div>
+<sc-if value="{{isLocalLog}}" hint-placeholder-val="{{true}}"><div style="display:flex;flex-direction:column;gap:4px"><label for="lr" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">RUN</label>
 <select id="lr" value="{{logRun}}" onChange="{{setRun}}" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;max-width:320px">
 <sc-for list="{{runOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.v}}">{{o.l}}</option></sc-for>
-</select></div>
+</select></div></sc-if>
+<sc-if value="{{isServerLog}}" hint-placeholder-val="{{false}}"><div style="display:flex;flex-direction:column;gap:4px"><label for="lwho" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">WHO</label>
+<select id="lwho" value="{{serverWho}}" onChange="{{setWho}}" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;max-width:320px">
+<sc-for list="{{whoOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.v}}">{{o.l}}</option></sc-for>
+</select></div></sc-if>
 <div style="display:flex;gap:6px;flex-wrap:wrap" role="group" aria-label="Filter by level">
 <sc-for list="{{levelBtns}}" as="b" hint-placeholder-count="5">
 <button type="button" onClick="{{b.go}}" aria-pressed="{{b.pressed}}" style="{{b.style}}; border-width:1px; border-style:solid; border-radius:4px; padding:6px 10px; min-height:44px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; cursor:pointer">{{b.l}} {{b.n}}</button>
@@ -807,6 +821,21 @@ Page 1 of 12</pre></div>
 <sc-if value="{{confirmClear}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{cancelClear}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:6px 10px;min-height:44px;font-size:12px;font-weight:600;cursor:pointer">Keep history</button></sc-if>
 </div>
 </div>
+<sc-if value="{{sLoading}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">Loading the shared log…</p></sc-if>
+<sc-if value="{{hasSError}}" hint-placeholder-val="{{false}}"><p role="status" style="margin:0;padding:18px;color:#B42318">{{sError}}</p></sc-if>
+<sc-if value="{{noSEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">Nothing saved on this server yet for this filter.</p></sc-if>
+<sc-if value="{{hasSEntries}}" hint-placeholder-val="{{false}}">
+<div style="overflow:auto;max-height:640px">
+<table class="tbl">
+<thead><tr><th>Who · when</th><th>Level · step</th><th>Event</th></tr></thead>
+<tbody>
+<sc-for list="{{sEntries}}" as="e" hint-placeholder-count="10">
+<tr><td style="min-width:150px"><div style="font-weight:600;font-size:12.5px">{{e.who}}</div><div class="mono" style="font-size:11px;color:#4A4F58;white-space:nowrap">{{e.runS}} · {{e.dayS}} {{e.tsShort}}</div></td><td style="white-space:nowrap"><div style="{{e.lvStyle}}">{{e.level}}</div><div style="font-size:12px;font-weight:500">{{e.step}}</div></td><td style="font-size:12.5px;word-break:break-word;min-width:220px">{{e.msg}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
 <sc-if value="{{noEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">No events yet. Every pipeline step, batch, warning and reviewer action is recorded here with a timestamp.</p></sc-if>
 <sc-if value="{{hasEntries}}" hint-placeholder-val="{{true}}">
 <div style="overflow:auto;max-height:640px">
@@ -1103,6 +1132,18 @@ class Component extends DCLogic {
     this._runSeq = 0; this._runId = 0;
     try { const cr = JSON.parse(window.localStorage.getItem('ledgerlens.cprules.v1') || '[]'); if (Array.isArray(cr)) this.state.cpRules = cr; } catch (e) {}
     try { const saved = JSON.parse(window.localStorage.getItem('ledgerlens.log.v1') || '[]'); if (Array.isArray(saved)) { this._log = saved; this.state.log = saved.slice(); this._runSeq = saved.reduce((a, e) => Math.max(a, e.run || 0), 0); } } catch (e) {}
+    // server copy of the activity log: a random id per browser, an optional display name, and a sequence number per entry
+    this._seq = this._log.reduce((a, e) => Math.max(a, e.seq || 0), 0); this._sentSeq = 0; this._actOn = false;
+    try {
+      this._clientId = window.localStorage.getItem('ledgerlens.client.v1');
+      if (!this._clientId) { this._clientId = 'b' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); window.localStorage.setItem('ledgerlens.client.v1', this._clientId); }
+      this.state.clientName = window.localStorage.getItem('ledgerlens.clientname.v1') || '';
+      this._sentSeq = Number(window.localStorage.getItem('ledgerlens.logsent.v1') || 0) || 0;
+      // the counter only ever goes up, even after "Clear history", so the server never mistakes new entries for old ones
+      this._seq = Math.max(this._seq, this._sentSeq, Number(window.localStorage.getItem('ledgerlens.logseq.v1') || 0) || 0);
+    } catch (e) { this._clientId = 'b' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36); this.state.clientName = ''; }
+    this._log.forEach((e) => { if (!e.seq) e.seq = ++this._seq; });
+    this.state.logSource = 'local'; this.state.serverLog = null;
     this._running = false;
     this.state.aiMode = 'rules'; this.state.llmStatus = { st: 'checking', msg: 'Checking for a backend…' }; this.state.llmCls = null; this.state.llmStats = null;
   }
@@ -1331,7 +1372,7 @@ class Component extends DCLogic {
           { q: 'Why does the online demo say "Rules only"?', a: 'Using the AI needs a private API key, which must never be put in a public web page. The online demo therefore uses the rules; the full AI mode runs on a computer with its own small server that keeps the key.' }
         ] },
         { group: 'Your data', items: [
-          { q: 'Where does my statement go?', a: 'In Rules-only mode, nowhere: everything is read inside your own browser. In AI mode, the page text goes to the app\'s own server and from there to the AI model, and nowhere else.' },
+          { q: 'Where does my statement go?', a: 'On the online demo, nowhere: everything is read inside your own browser. When the app runs on your organisation\'s own server, the activity log (step messages such as file names, account numbers and results) is also saved on that server so the team can see it, and in AI mode the page text goes to that server and from there to the AI model, and nowhere else.' },
           { q: 'Is my PDF password stored?', a: 'No. It is used once to open the file and is never saved or written to any log.' },
           { q: 'Is the example data real?', a: 'No. Every sample statement is made up for testing, with fictional names and account numbers.' }
         ] }
@@ -1736,11 +1777,33 @@ class Component extends DCLogic {
       const r = await fetch((this.llmBase || '') + '/api/health', { signal: ctl ? ctl.signal : undefined }); clearTimeout(to);
       const j = await r.json();
       if (j && j.demo) this.setState({ demoMode: true });
+      if (j && j.ok && j.activity) { this._actOn = true; this.setState({ actOn: true }); this.flushActivity(); }
       if (j && j.ok && j.llm) { this.setState({ llmStatus: { st: 'ready', model: j.model, provider: j.provider, msg: 'Backend connected · ' + j.model + (j.provider === 'mock' ? ' (MOCK — test mode, not a real model)' : '') }, aiMode: this.state.aiModeChosen ? this.state.aiMode : 'llm' }); return true; }
       if (j && j.ok) { this.setState({ llmStatus: { st: 'nokey', msg: 'Backend connected but no API key set — add ANTHROPIC_API_KEY and restart' } }); return false; }
     } catch (e) {}
     this.setState({ llmStatus: { st: 'off', msg: 'No backend connected — this copy runs rules only. Run the local app (npm start) to use the LLM.' } });
     return false;
+  }
+  // ---------- activity log on the server (only when the backend offers it; the browser copy always stays) ----------
+  queueActivity() { if (!this._actOn || this._actT) return; this._actT = setTimeout(() => { this._actT = null; this.flushActivity(); }, 1500); }
+  async flushActivity() {
+    if (!this._actOn || this._actBusy) return; this._actBusy = true;
+    try {
+      for (let guard = 0; guard < 20; guard++) {
+        const pending = this._log.filter((e) => (e.seq || 0) > this._sentSeq).slice(0, 500); if (!pending.length) break;
+        const r = await fetch((this.llmBase || '') + '/api/activity', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client_id: this._clientId, client_name: this.state.clientName || null, entries: pending.map((e) => ({ seq: e.seq, run: e.run || null, ts: e.ts, day: e.day, level: e.level, step: e.step, msg: e.msg })) }) });
+        if (!r.ok) break;
+        this._sentSeq = pending[pending.length - 1].seq; try { window.localStorage.setItem('ledgerlens.logsent.v1', String(this._sentSeq)); } catch (e) {}
+      }
+    } catch (e) { /* offline or server stopped: entries stay queued and are sent next time */ } finally { this._actBusy = false; }
+    if (this.state.logSource === 'server' && this.state.tab === 'log') this.loadServerLog();
+  }
+  async loadServerLog() {
+    try {
+      const qs = new URLSearchParams({ limit: '500', level: this.state.logLevel || 'ALL', client: this.state.serverWho && this.state.serverWho !== 'ALL' ? this.state.serverWho : '' });
+      const r = await fetch((this.llmBase || '') + '/api/activity?' + qs.toString()); const j = await r.json();
+      this.setState({ serverLog: j.ok ? j : { ok: false, error: j.error || 'could not load' } });
+    } catch (e) { this.setState({ serverLog: { ok: false, error: 'the server did not answer' } }); }
   }
   llmUse() { return this.state.aiMode === 'llm' && this.state.llmStatus && this.state.llmStatus.st === 'ready'; }
 
@@ -2390,9 +2453,9 @@ class Component extends DCLogic {
   componentWillUnmount() { clearTimeout(this._warm); }
   now() { const d = new Date(); return d.toLocaleTimeString('en-GB', { hour12: false }) + '.' + String(d.getMilliseconds()).padStart(3, '0'); }
   today() { return new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
-  saveLog() { try { window.localStorage.setItem('ledgerlens.log.v1', JSON.stringify(this._log)); } catch (e) {} }
+  saveLog() { try { window.localStorage.setItem('ledgerlens.log.v1', JSON.stringify(this._log)); window.localStorage.setItem('ledgerlens.logseq.v1', String(this._seq || 0)); } catch (e) {} }
   newRun() { this._runSeq += 1; this._runId = this._runSeq; return this._runId; }
-  log(level, step, msg, push, meta) { const e = { ts: this.now(), day: this.today(), level, step, msg, run: this._runId || 0 }; if (meta) e.meta = meta; this._log.push(e); if (this._log.length > 2000) this._log = this._log.slice(-2000); this.saveLog(); if (push !== false) this.setState({ log: this._log.slice() }); }
+  log(level, step, msg, push, meta) { const e = { ts: this.now(), day: this.today(), level, step, msg, run: this._runId || 0, seq: ++this._seq }; if (meta) e.meta = meta; this._log.push(e); this.queueActivity(); if (this._log.length > 2000) this._log = this._log.slice(-2000); this.saveLog(); if (push !== false) this.setState({ log: this._log.slice() }); }
   acctMissing(a) {
     const m = [];
     if (/^UNKNOWN-/.test(a.key)) m.push('account number');
@@ -2914,16 +2977,34 @@ class Component extends DCLogic {
     const runOpts = [{ v: 'ALL', l: 'All runs (' + runs.length + ')' }].concat(runs.slice().reverse().map((r) => ({ v: String(r.id), l: 'Run #' + r.id + ' · ' + (r.day || '') + ' ' + (r.ts || '').slice(0, 5) + ' · ' + (r.label.length > 38 ? r.label.slice(0, 38) + '…' : r.label) })));
     const inRun = (e) => s.logRun === 'ALL' || String(e.run) === s.logRun;
     const entries = s.log.filter((e) => inRun(e) && (s.logLevel === 'ALL' || e.level === s.logLevel)).slice().reverse().map((e) => ({ ...e, runS: e.run ? '#' + e.run : '—', dayS: e.day || '', lvStyle: 'font-weight:600;font-size:11px;letter-spacing:.05em;color:' + (lvlCol[e.level] || '#16181D') }));
+    // shared log on the server (when a backend is connected)
+    const onServer = !!s.actOn && s.logSource === 'server'; const sl = s.serverLog || {};
+    const whoName = (c) => (c ? (c.name || (c.kind === 'api' ? 'API user' : 'Browser ' + String(c.client_id).slice(-4))) + (c.client_id === this._clientId ? ' (you)' : '') : '');
+    const clientsById = {}; (sl.clients || []).forEach((c) => { clientsById[c.client_id] = c; });
+    const sEntries = (sl.entries || []).map((e) => ({ ...e, who: whoName(clientsById[e.client_id] || { client_id: e.client_id, name: e.name, kind: e.kind }), runS: e.run ? '#' + e.run : '—', dayS: e.day || '', ts: e.ts || '', tsShort: String(e.ts || '').slice(0, 8), lvStyle: 'font-weight:600;font-size:11px;letter-spacing:.05em;color:' + (lvlCol[e.level] || '#16181D') }));
+    const sLv = {}; (sl.levels || []).forEach((x) => { sLv[x.level] = x.n; }); const sAll = Object.values(sLv).reduce((a, b) => a + b, 0);
+    const goSource = (k) => { this.setState({ logSource: k, logRun: 'ALL' }); if (k === 'server') this.loadServerLog(); };
     return {
       steps: steps.map((x, i) => ({ ...x, ...this.infoFor('L' + ['conv', 'val', 'ext', 'enr', 'cls', 'score'][i], x.k), info: this.stepInfo()[['conv', 'val', 'ext', 'enr', 'cls', 'score'][i]], num: String(i + 1).padStart(2, '0'), stLabel: lab[x.st] || x.st.toUpperCase(), dot: 'width:12px;height:12px;border-radius:50%;flex-shrink:0;background:' + (col[x.st] || '#8A8F98') + (i === curIdx ? ';box-shadow:0 0 0 4px #F0DFB0' : ''), stStyle: 'font-size:11px;font-weight:600;letter-spacing:.05em;color:' + (col[x.st] || '#8A8F98'), rowStyle: i === curIdx ? 'background:#FFF8E6;border-color:#E6CD86' : 'background:#FFFFFF;border-color:#E4E1DA' })),
       curName, curDetail, curLabel: lab[curSt] || curSt.toUpperCase(), curStyle: 'font-size:12px;font-weight:700;letter-spacing:.06em;color:' + (col[curSt] || '#8A8F98'),
       curBar: 'height:8px;border-radius:4px;background:#1E7B45;width:' + Math.round(doneN / steps.length * 100) + '%', progS: doneN + ' of ' + steps.length + ' steps done', isBusy: s.busy,
       sideStep: curName, sideStyle: 'width:8px;height:8px;border-radius:50%;flex-shrink:0;background:' + (col[curSt] || '#8A8F98'),
-      entries, nEntries: entries.length, nLog: s.log.length, hasEntries: entries.length > 0, noEntries: entries.length === 0,
-      levelBtns: levels.map((l) => ({ l, n: l === 'ALL' ? s.log.filter(inRun).length : s.log.filter((e) => inRun(e) && e.level === l).length, pressed: s.logLevel === l ? 'true' : 'false', go: () => this.setState({ logLevel: l }), style: s.logLevel === l ? 'background:#1F4FD1;color:#FFFFFF;border-color:#1F4FD1' : 'background:#FFFFFF;color:#16181D;border-color:#9EA2AA' })),
+      entries, nEntries: onServer ? sEntries.length : entries.length, nLog: onServer ? (sl.total || 0) : s.log.length, hasEntries: !onServer && entries.length > 0, noEntries: !onServer && entries.length === 0,
+      actOn: !!s.actOn, notActOn: !s.actOn, isServerLog: onServer, isLocalLog: !onServer,
+      sEntries, hasSEntries: onServer && sEntries.length > 0, noSEntries: onServer && !!s.serverLog && !sl.error && sEntries.length === 0, sLoading: onServer && !s.serverLog, sError: onServer && sl.error ? 'Could not load the shared log: ' + sl.error : '', hasSError: onServer && !!sl.error,
+      logSourceBtns: [['local', 'This browser', s.log.length], ['server', 'Everyone on this server', (sl.clients || []).reduce((a, c) => a + (c.entries || 0), 0) || '']].map(([k, l, n]) => ({ l, n: n === '' ? '' : String(n), pressed: (s.logSource || 'local') === k ? 'true' : 'false', go: () => goSource(k), style: (s.logSource || 'local') === k ? 'background:#1F4FD1;color:#FFFFFF;border-color:#1F4FD1' : 'background:#FFFFFF;color:#16181D;border-color:#9EA2AA' })),
+      whoOpts: [{ v: 'ALL', l: 'Everyone (' + (sl.clients || []).length + ')' }].concat((sl.clients || []).map((c) => ({ v: c.client_id, l: whoName(c) + ' · ' + c.entries }))), serverWho: s.serverWho || 'ALL',
+      setWho: (e) => { this.setState({ serverWho: e.target.value }); setTimeout(() => this.loadServerLog(), 0); },
+      clientName: s.clientName || '', setClientName: (e) => { const v = String(e.target.value || '').trim().slice(0, 60); try { window.localStorage.setItem('ledgerlens.clientname.v1', v); } catch (x) {} this.setState({ clientName: v }); if (this._actOn) fetch((this.llmBase || '') + '/api/activity', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ client_id: this._clientId, client_name: v || null, entries: [] }) }).then(() => { if (this.state.logSource === 'server') this.loadServerLog(); }).catch(() => {}); },
+      logScope: s.actOn ? 'Kept in this browser (last 2,000 events) and saved on this server, so the whole team can see it under "Everyone on this server".' : 'Kept in this browser only (last 2,000 events): no server is connected to this copy. Run the app with its backend (npm start) to save the log on a server.',
+      levelBtns: levels.map((l) => ({ l, n: onServer ? (l === 'ALL' ? sAll : (sLv[l] || 0)) : (l === 'ALL' ? s.log.filter(inRun).length : s.log.filter((e) => inRun(e) && e.level === l).length), pressed: s.logLevel === l ? 'true' : 'false', go: () => { this.setState({ logLevel: l }); if (onServer) setTimeout(() => this.loadServerLog(), 0); }, style: s.logLevel === l ? 'background:#1F4FD1;color:#FFFFFF;border-color:#1F4FD1' : 'background:#FFFFFF;color:#16181D;border-color:#9EA2AA' })),
       runOpts, logRun: s.logRun, nRuns: runs.length, setRun: (e) => this.setState({ logRun: e.target.value }),
-      clearLabel: s.confirmClear ? 'Confirm — delete all history' : 'Clear history', confirmClear: s.confirmClear,
-      clearLog: () => { if (!this.state.confirmClear) { this.setState({ confirmClear: true }); return; } this._log = []; this.saveLog(); this.setState({ log: [], confirmClear: false, logRun: 'ALL' }); },
+      clearLabel: s.confirmClear ? (s.actOn ? 'Confirm — delete this browser\'s history here and on the server' : 'Confirm — delete all history') : (s.actOn ? 'Clear my history' : 'Clear history'), confirmClear: s.confirmClear,
+      clearLog: () => {
+        if (!this.state.confirmClear) { this.setState({ confirmClear: true }); return; }
+        this._log = []; this.saveLog(); this.setState({ log: [], confirmClear: false, logRun: 'ALL' });
+        if (this._actOn) { this._sentSeq = this._seq; try { window.localStorage.setItem('ledgerlens.logsent.v1', String(this._sentSeq)); } catch (e) {} fetch((this.llmBase || '') + '/api/activity?client_id=' + encodeURIComponent(this._clientId), { method: 'DELETE' }).then(() => { if (this.state.logSource === 'server') this.loadServerLog(); }).catch(() => {}); }
+      },
       cancelClear: () => this.setState({ confirmClear: false }), goIngest: () => this.setState({ tab: 'ingest' })
     };
   }
@@ -3101,7 +3182,7 @@ class Component extends DCLogic {
       ocrCanPreload: s.ocrState.st === 'idle' || s.ocrState.st === 'error', ocrPreloadLabel: s.ocrState.st === 'error' ? 'Retry loading' : 'Preload OCR engine',
       preloadOcr: () => { this.log('USER', 'OCR', 'OCR engine preload requested'); this.ocrEngine().catch(() => {}); },
       showBatches: !!s.showBatches, batchExp: s.showBatches ? 'true' : 'false', batchBtn: s.showBatches ? 'Hide details' : 'Show details', toggleBatches: () => this.setState({ showBatches: !this.state.showBatches }), batchSummary: (s.batches || []).length + ' batch' + ((s.batches || []).length === 1 ? '' : 'es') + ' · ' + (s.batches || []).reduce((a, b) => a + (+b.rows || 0), 0) + ' rows read',
-      pageTitle: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[0], pageSub: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[1],
+      pageTitle: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser and, when a server is connected, saved on the server for the whole team.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[0], pageSub: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser and, when a server is connected, saved on the server for the whole team.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[1],
       showPreview: !!s.showPreview, previewExp: s.showPreview ? 'true' : 'false', previewBtn: s.showPreview ? 'Hide text' : 'Show text', togglePreview: () => this.setState({ showPreview: !this.state.showPreview }),
       isHome: s.tab === 'home', notHome: s.tab !== 'home',
       isKnow: s.tab === 'know',

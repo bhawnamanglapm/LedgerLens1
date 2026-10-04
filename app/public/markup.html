@@ -793,12 +793,26 @@ Page 1 of 12</pre></div>
 </div>
 
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;display:flex;flex-direction:column;min-width:0">
+<sc-if value="{{actOn}}" hint-placeholder-val="{{false}}">
+<div style="padding:12px 18px;border-bottom:1px solid #E4E1DA;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;background:#FAFAF7">
+<div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">SHOW</span>
+<div role="group" aria-label="Whose activity to show" style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{logSourceBtns}}" as="b" hint-placeholder-count="2"><button type="button" onClick="{{b.go}}" aria-pressed="{{b.pressed}}" style="{{b.style}}; border-width:1px; border-style:solid; border-radius:4px; padding:6px 12px; min-height:44px; font-size:12.5px; font-weight:600; cursor:pointer">{{b.l}} <span class="mono" style="font-weight:400">{{b.n}}</span></button></sc-for>
+</div></div>
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0"><label for="lname" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">YOUR NAME IN THE SHARED LOG</label>
+<input id="lname" type="text" value="{{clientName}}" onChange="{{setClientName}}" placeholder="e.g. Asha (credit team)" maxlength="60" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;width:260px;max-width:100%;box-sizing:border-box"></div>
+</div>
+</sc-if>
 <div style="padding:16px 18px;border-bottom:1px solid #E4E1DA;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between">
-<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Activity log <span class="mono" style="font-weight:400;font-size:12px;color:#4A4F58">· newest first · {{nEntries}} shown of {{nLog}}</span></h2><span style="font-size:11.5px;color:#4A4F58">History is kept across runs and reloads in this browser (last 2,000 events).</span></div>
-<div style="display:flex;flex-direction:column;gap:4px"><label for="lr" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">RUN</label>
+<div style="display:flex;flex-direction:column;gap:2px"><h2 style="margin:0;font-size:16px;font-weight:600">Activity log <span class="mono" style="font-weight:400;font-size:12px;color:#4A4F58">· newest first · {{nEntries}} shown of {{nLog}}</span></h2><span style="font-size:11.5px;color:#4A4F58;max-width:70ch">{{logScope}}</span></div>
+<sc-if value="{{isLocalLog}}" hint-placeholder-val="{{true}}"><div style="display:flex;flex-direction:column;gap:4px"><label for="lr" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">RUN</label>
 <select id="lr" value="{{logRun}}" onChange="{{setRun}}" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;max-width:320px">
 <sc-for list="{{runOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.v}}">{{o.l}}</option></sc-for>
-</select></div>
+</select></div></sc-if>
+<sc-if value="{{isServerLog}}" hint-placeholder-val="{{false}}"><div style="display:flex;flex-direction:column;gap:4px"><label for="lwho" style="font-size:11px;font-weight:600;letter-spacing:.06em;color:#4A4F58">WHO</label>
+<select id="lwho" value="{{serverWho}}" onChange="{{setWho}}" style="min-height:44px;padding:6px 10px;border:1px solid #9EA2AA;border-radius:4px;background:#fff;max-width:320px">
+<sc-for list="{{whoOpts}}" as="o" hint-placeholder-count="3"><option value="{{o.v}}">{{o.l}}</option></sc-for>
+</select></div></sc-if>
 <div style="display:flex;gap:6px;flex-wrap:wrap" role="group" aria-label="Filter by level">
 <sc-for list="{{levelBtns}}" as="b" hint-placeholder-count="5">
 <button type="button" onClick="{{b.go}}" aria-pressed="{{b.pressed}}" style="{{b.style}}; border-width:1px; border-style:solid; border-radius:4px; padding:6px 10px; min-height:44px; font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:600; cursor:pointer">{{b.l}} {{b.n}}</button>
@@ -807,6 +821,21 @@ Page 1 of 12</pre></div>
 <sc-if value="{{confirmClear}}" hint-placeholder-val="{{false}}"><button type="button" onClick="{{cancelClear}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:6px 10px;min-height:44px;font-size:12px;font-weight:600;cursor:pointer">Keep history</button></sc-if>
 </div>
 </div>
+<sc-if value="{{sLoading}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">Loading the shared log…</p></sc-if>
+<sc-if value="{{hasSError}}" hint-placeholder-val="{{false}}"><p role="status" style="margin:0;padding:18px;color:#B42318">{{sError}}</p></sc-if>
+<sc-if value="{{noSEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">Nothing saved on this server yet for this filter.</p></sc-if>
+<sc-if value="{{hasSEntries}}" hint-placeholder-val="{{false}}">
+<div style="overflow:auto;max-height:640px">
+<table class="tbl">
+<thead><tr><th>Who · when</th><th>Level · step</th><th>Event</th></tr></thead>
+<tbody>
+<sc-for list="{{sEntries}}" as="e" hint-placeholder-count="10">
+<tr><td style="min-width:150px"><div style="font-weight:600;font-size:12.5px">{{e.who}}</div><div class="mono" style="font-size:11px;color:#4A4F58;white-space:nowrap">{{e.runS}} · {{e.dayS}} {{e.tsShort}}</div></td><td style="white-space:nowrap"><div style="{{e.lvStyle}}">{{e.level}}</div><div style="font-size:12px;font-weight:500">{{e.step}}</div></td><td style="font-size:12.5px;word-break:break-word;min-width:220px">{{e.msg}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</sc-if>
 <sc-if value="{{noEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">No events yet. Every pipeline step, batch, warning and reviewer action is recorded here with a timestamp.</p></sc-if>
 <sc-if value="{{hasEntries}}" hint-placeholder-val="{{true}}">
 <div style="overflow:auto;max-height:640px">

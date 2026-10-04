@@ -9,6 +9,9 @@
  *   POST /api/llm      { task, system, user, tool, max_tokens } → { ok, input, usage, model, ms }
  *   GET  /             the web app (same markup + engine as the claude.ai page)
  *   /api/v1/...        REST API: users, statements, background jobs, results, review decisions (backend/api.js)
+ *   POST /api/activity { client_id, client_name?, entries[] }   the web app's activity log, saved on the server
+ *   GET  /api/activity?client=&level=&limit=&before=            shared log (newest first) + who wrote to it
+ *   DELETE /api/activity?client_id=                             delete one browser's entries ("Clear history")
  *
  * The API key never leaves this process. Only the two extraction/classification tools are allowed,
  * request bodies are capped at 2 MB, and the server listens on 127.0.0.1 unless HOST is set.
@@ -71,6 +74,37 @@ for (const dir of ['../test-statements', '../test-statements/scenarios']) {
 const b64cache = {};
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8', '.json': 'application/json' };
 
+// shared activity log: every browser using this server (and every API job) writes here; protected like the page
+const CLIENT_RE = /^[A-Za-z0-9_-]{8,64}$/;
+function activityRoute(req, res, url) {
+  const qs = new URL(req.url, 'http://x').searchParams;
+  if (!store) return send(res, 503, JSON.stringify({ ok: false, error: 'activity log needs the database (see "API v1 disabled" at start-up)' }));
+  if (req.method === 'GET') {
+    const client = qs.get('client') || ''; if (client && !CLIENT_RE.test(client)) return send(res, 400, JSON.stringify({ ok: false, error: 'bad client' }));
+    const r = store.activity({ client, level: qs.get('level'), limit: qs.get('limit'), before: qs.get('before') });
+    return send(res, 200, JSON.stringify({ ok: true, total: r.total, entries: r.rows, clients: store.activityClients(), levels: store.activityLevels(client) }));
+  }
+  if (req.method === 'DELETE') {
+    const c = qs.get('client_id') || ''; if (!CLIENT_RE.test(c)) return send(res, 400, JSON.stringify({ ok: false, error: 'client_id is required' }));
+    return send(res, 200, JSON.stringify({ ok: true, deleted: store.deleteActivity(c) }));
+  }
+  if (req.method !== 'POST') return send(res, 405, JSON.stringify({ ok: false, error: 'method not allowed' }));
+  let size = 0; const chunks = [];
+  req.on('data', (c) => { size += c.length; if (size > 1e6) { send(res, 413, JSON.stringify({ ok: false, error: 'request too large' })); req.destroy(); } else chunks.push(c); });
+  req.on('end', () => {
+    if (res.writableEnded) return;
+    try {
+      const b = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+      if (!CLIENT_RE.test(String(b.client_id || ''))) return send(res, 400, JSON.stringify({ ok: false, error: 'client_id is required' }));
+      const lv = new Set(['INFO', 'WARN', 'ERROR', 'USER']); const str = (x, n) => (x === null || x === undefined ? null : String(x).slice(0, n));
+      const entries = (Array.isArray(b.entries) ? b.entries : []).slice(0, 500).filter((e) => e && Number.isInteger(e.seq) && e.seq > 0 && lv.has(e.level) && e.msg)
+        .map((e) => ({ seq: e.seq, run: Number.isInteger(e.run) ? e.run : null, ts: str(e.ts, 16), day: str(e.day, 16), level: e.level, step: str(e.step, 60), msg: str(e.msg, 1000) }));
+      const name = b.client_name ? String(b.client_name).trim().slice(0, 60) || null : null;
+      send(res, 200, JSON.stringify({ ok: true, stored: store.addActivity(b.client_id, name, 'browser', entries), received: entries.length }));
+    } catch (e) { send(res, 400, JSON.stringify({ ok: false, error: 'body is not valid JSON' })); }
+  });
+}
+
 function send(res, code, body, type) { res.writeHead(code, { 'content-type': type || 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }); res.end(body); }
 function file(res, p, type) { fs.readFile(p, (e, buf) => (e ? send(res, 404, 'not found', 'text/plain') : send(res, 200, buf, type || types[path.extname(p)] || 'application/octet-stream'))); }
 
@@ -82,7 +116,7 @@ const server = http.createServer((req, res) => {
     return api.handle(req, res, url, new URL(req.url, 'http://x').searchParams);
   }
   if (!authorised(req)) { res.writeHead(401, { 'www-authenticate': 'Basic realm="LedgerLens demo", charset="UTF-8"', 'content-type': 'text/plain' }); return res.end('Password required'); }
-  if (req.method === 'GET' && url === '/api/health') return send(res, 200, JSON.stringify({ ok: true, demo: DEMO, ...llm.info(), api_v1: !!api, workers: queue ? queue.workers : 0 }));
+  if (req.method === 'GET' && url === '/api/health') return send(res, 200, JSON.stringify({ ok: true, demo: DEMO, ...llm.info(), api_v1: !!api, activity: !!store, workers: queue ? queue.workers : 0 }));
   if (req.method === 'POST' && url === '/api/llm') {
     let size = 0; const chunks = [];
     req.on('data', (c) => { size += c.length; if (size > 2e6) { send(res, 413, JSON.stringify({ ok: false, error: 'request too large' })); req.destroy(); } else chunks.push(c); });
@@ -100,6 +134,7 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+  if (url === '/api/activity') return activityRoute(req, res, url);
   if (req.method !== 'GET') return send(res, 405, 'method not allowed', 'text/plain');
   if (url === '/' || url === '/index.html') return file(res, path.join(__dirname, 'public/index.html'));
   if (url === '/dc.js') return file(res, path.join(__dirname, 'public/dc.js'));

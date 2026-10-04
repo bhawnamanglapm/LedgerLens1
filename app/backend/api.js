@@ -75,6 +75,7 @@ function createApi(store, queue, opts) {
     const options = { llm: !!opt.llm, review_mode: opt.review_mode === 'all' ? 'all' : 'smart' };
     if (opt.taxonomy_csv) { try { options.custom_rules = new pipeline.Component({}).parseCsv(String(opt.taxonomy_csv)); } catch (e) { throw Object.assign(new Error('taxonomy_csv: ' + e.message), { status: 400 }); } }
     const job = store.createJob(user.id, ids, options); queue.setPassword(job.id, password); queue.kick();
+    store.logApi(user.id, 'USER', 'Job', 'Job #' + job.id + ' queued: ' + ids.map((id) => store.statement(user.id, id).file_name).join(', ') + (options.llm ? ' · LLM' : ''), job.id);
     return job;
   }
 
@@ -97,6 +98,7 @@ function createApi(store, queue, opts) {
       store.decisions(job.id).forEach((x) => { (x.field === 'category' ? overrides : cpOverrides)[x.txn_id] = x.new_value; });
       const out = pipeline.rescore(snap, { overrides, cpOverrides });
       store.saveResult(job.id, out, 'review decision on ' + t.id);
+      store.logApi(user.id, 'USER', 'Review', 'Job #' + job.id + ' · ' + t.id + ' (' + t.narration.slice(0, 40) + '): ' + [d.category ? 'category ' + t.level2 + ' → ' + d.category : '', d.counterparty ? 'counterparty → ' + String(d.counterparty).trim().slice(0, 60) : ''].filter(Boolean).join(', ') + (d.note ? ' — ' + String(d.note).slice(0, 120) : '') + ' · result v' + version, job.id);
       return out;
     });
     return { out: tx(), version };

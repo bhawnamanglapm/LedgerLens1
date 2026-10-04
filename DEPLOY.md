@@ -12,7 +12,7 @@ Three ways to use this package, from simplest to most work. Do them in this orde
 ./setup.sh                      # macOS / Linux
 # Windows PowerShell:  powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
-The setup script checks Node, installs the dependencies, creates `app/.env` and runs the 105 tests.
+The setup script checks Node, installs the dependencies, creates `app/.env` and runs the 108 tests.
 
 Then:
 1. Open `app/.env` and paste your Claude API key: `ANTHROPIC_API_KEY=sk-ant-...`
@@ -28,7 +28,7 @@ Then:
 
 ## 2 · GitHub repository with automatic tests
 
-The package is already a git repository with one commit, and it includes `.github/workflows/test.yml`. On every push, GitHub runs `npm test` (105 checks) using the offline test double. **No API key, no cost.**
+The package is already a git repository with one commit, and it includes `.github/workflows/test.yml`. On every push, GitHub runs `npm test` (108 checks) using the offline test double. **No API key, no cost.**
 
 1. On github.com → **New repository** → name it `ledgerlens` → keep it **Private** if you prefer (Actions still runs) → **don't** add a README, .gitignore or licence (the package has them).
 2. In the unzipped folder:

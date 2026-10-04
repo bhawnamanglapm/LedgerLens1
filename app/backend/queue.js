@@ -40,6 +40,7 @@ function createQueue(store, opts) {
     entry.timer = setTimeout(() => { if (!entry.done) { entry.done = true; child.kill('SIGKILL'); store.finishJob(job.id, 'failed', { error: 'stopped after ' + Math.round(TIMEOUT / 1000) + ' s (JOB_TIMEOUT_MS)', error_code: 'TIMEOUT' }); cleanup(job.id); } }, TIMEOUT);
     running.set(job.id, entry);
     log('job ' + job.id + ' started (user ' + job.user_id + ', ' + files.length + ' file(s), attempt ' + (job.attempts + 1) + ')');
+    act(job, 'INFO', 'Job', 'Job #' + job.id + ' started: ' + files.map((f) => f.name).join(', ') + (job.attempts ? ' (attempt ' + (job.attempts + 1) + ')' : ''));
     child.on('message', (m) => {
       if (m.type === 'ready') child.send({ type: 'run', files, options: job.options, password: passwords.get(job.id) || null });
       else if (m.type === 'progress') store.setProgress(job.id, m.stage, { message: m.message, level: m.level, seconds: Math.round((Date.now() - entry.started) / 1000) });
@@ -55,18 +56,23 @@ function createQueue(store, opts) {
     });
   }
 
+  function act(job, level, step, msg) { try { store.logApi(job.user_id, level, step, msg, job.id); } catch (e) {} }
+
   function finish(job, r, ms) {
     if (r.ok) {
+      const S0 = r.output.credit_risk_summary || {};
+      act(job, 'INFO', 'Job', 'Job #' + job.id + ' done in ' + (ms / 1000).toFixed(1) + ' s: ' + r.output.transactions.length + ' txns · ' + S0.composite_score + '/1000 · ' + S0.rating_band + ' → ' + S0.decision + (S0.pending_review_items ? ' · ' + S0.pending_review_items + ' to review' : ''));
       store.saveSnapshot(job.id, r.snapshot); store.saveResult(job.id, r.output, 'pipeline');
       const R = r.output.credit_risk_summary || {};
       store.finishJob(job.id, 'done', { stage: 'Completed in ' + (ms / 1000).toFixed(1) + ' s', score: R.composite_score, band: R.rating_band, decision: R.decision, pending_review: R.pending_review_items, transactions: r.output.transactions.length, pages: r.output.run.pages });
       passwords.delete(job.id); log('job ' + job.id + ' done in ' + (ms / 1000).toFixed(1) + ' s · ' + R.composite_score + ' · ' + R.decision);
     } else if (r.code === 'NEED_PASSWORD' || r.code === 'WRONG_PASSWORD') {
-      passwords.delete(job.id);
+      passwords.delete(job.id); act(job, 'WARN', 'Job', 'Job #' + job.id + ': ' + r.error);
       store.finishJob(job.id, 'needs_password', { error: r.error, error_code: r.code, stage: r.code === 'WRONG_PASSWORD' ? 'Wrong password — send the correct one' : 'Waiting for the PDF password' });
     } else if (r.code === 'STOPPED') {
+      act(job, 'ERROR', 'Job', 'Job #' + job.id + ' stopped by validation: ' + r.error);
       store.finishJob(job.id, 'stopped', { error: r.error, error_code: 'VALIDATION', stage: 'Stopped by validation' });
-    } else store.finishJob(job.id, 'failed', { error: r.error, error_code: r.code || 'ERROR' });
+    } else { act(job, 'ERROR', 'Job', 'Job #' + job.id + ' failed: ' + r.error); store.finishJob(job.id, 'failed', { error: r.error, error_code: r.code || 'ERROR' }); }
   }
 
   function cleanup(id) { const e = running.get(id); if (e) clearTimeout(e.timer); running.delete(id); setImmediate(tick); }

@@ -11,6 +11,8 @@
  *   results           the JSON output of a job, versioned: v1 from the pipeline, v2… after each review decision
  *   snapshots         what is needed to re-score a job without re-reading its files
  *   review_decisions  every reviewer decision (who, what, when) — the audit trail
+ *   activity          the shared activity log: every web-app browser and every API job writes here
+ *                     (newest ACTIVITY_MAX_ROWS rows kept, default 200,000)
  */
 const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
 const Database = require('better-sqlite3');
@@ -38,6 +40,12 @@ CREATE TABLE IF NOT EXISTS review_decisions (
   txn_id TEXT NOT NULL, field TEXT NOT NULL, old_value TEXT, new_value TEXT NOT NULL, note TEXT, created_at TEXT NOT NULL,
   result_version INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS decisions_job ON review_decisions(job_id, id);
+CREATE TABLE IF NOT EXISTS activity (
+  id INTEGER PRIMARY KEY, client_id TEXT NOT NULL, seq INTEGER NOT NULL, run INTEGER, ts TEXT, day TEXT, level TEXT NOT NULL,
+  step TEXT, msg TEXT NOT NULL, received_at TEXT NOT NULL, UNIQUE (client_id, seq));
+CREATE INDEX IF NOT EXISTS activity_client ON activity(client_id, id);
+CREATE TABLE IF NOT EXISTS activity_clients (
+  client_id TEXT PRIMARY KEY, name TEXT, kind TEXT NOT NULL, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL);
 `;
 
 const now = () => new Date().toISOString();
@@ -121,6 +129,40 @@ function open(dataDir) {
         .run(d.job_id, d.user_id, d.txn_id, d.field, d.old_value ?? null, d.new_value, d.note || null, now(), d.result_version).lastInsertRowid);
     },
     decisions(jobId) { return q('SELECT d.id, d.txn_id, d.field, d.old_value, d.new_value, d.note, d.created_at, d.result_version, u.name AS decided_by FROM review_decisions d JOIN users u ON u.id = d.user_id WHERE d.job_id = ? ORDER BY d.id').all(jobId); },
+    // ---- shared activity log ----
+    addActivity(clientId, name, kind, entries) {
+      const t = now(); const max = Number(process.env.ACTIVITY_MAX_ROWS || 200000);
+      const ins = q('INSERT OR IGNORE INTO activity (client_id, seq, run, ts, day, level, step, msg, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+      const up = q('INSERT INTO activity_clients (client_id, name, kind, first_seen, last_seen) VALUES (?, ?, ?, ?, ?) ON CONFLICT(client_id) DO UPDATE SET last_seen = excluded.last_seen, name = COALESCE(excluded.name, activity_clients.name)');
+      let n = 0;
+      db.transaction(() => {
+        up.run(clientId, name || null, kind || 'browser', t, t);
+        for (const e of entries) n += ins.run(clientId, e.seq, e.run ?? null, e.ts || null, e.day || null, e.level, e.step || null, e.msg, t).changes;
+        const total = q('SELECT COUNT(*) n FROM activity').get().n;
+        if (total > max) q('DELETE FROM activity WHERE id IN (SELECT id FROM activity ORDER BY id LIMIT ?)').run(total - max);
+      })();
+      return n;
+    },
+    // next sequence number for a server-side writer (API users), so their entries never collide
+    nextActivitySeq(clientId) { return (q('SELECT MAX(seq) m FROM activity WHERE client_id = ?').get(clientId).m || 0) + 1; },
+    // one activity entry written by the server for an API user (job queued / started / finished, review decisions)
+    logApi(userId, level, step, msg, jobId) {
+      const u = q('SELECT name FROM users WHERE id = ?').get(userId); const cid = 'api-user-' + userId; const d = new Date();
+      S.addActivity(cid, (u ? u.name : 'user ' + userId) + ' (API)', 'api', [{ seq: S.nextActivitySeq(cid), run: jobId || null, ts: d.toTimeString().slice(0, 8), day: d.toISOString().slice(0, 10), level, step, msg: String(msg).slice(0, 1000) }]);
+    },
+    activity(f) {
+      const w = []; const a = [];
+      if (f.client) { w.push('a.client_id = ?'); a.push(f.client); }
+      if (f.level && f.level !== 'ALL') { w.push('a.level = ?'); a.push(f.level); }
+      if (f.before) { w.push('a.id < ?'); a.push(Number(f.before)); }
+      const where = w.length ? 'WHERE ' + w.join(' AND ') : '';
+      const rows = q('SELECT a.id, a.client_id, a.seq, a.run, a.ts, a.day, a.level, a.step, a.msg, a.received_at, c.name, c.kind FROM activity a LEFT JOIN activity_clients c ON c.client_id = a.client_id ' + where + ' ORDER BY a.id DESC LIMIT ?').all(...a, Math.min(2000, Number(f.limit) || 500));
+      const total = q('SELECT COUNT(*) n FROM activity a ' + where).get(...a).n;
+      return { rows, total };
+    },
+    activityClients() { return q('SELECT c.client_id, c.name, c.kind, c.first_seen, c.last_seen, (SELECT COUNT(*) FROM activity a WHERE a.client_id = c.client_id) entries FROM activity_clients c ORDER BY c.last_seen DESC').all(); },
+    activityLevels(client) { return q('SELECT level, COUNT(*) n FROM activity' + (client ? ' WHERE client_id = ?' : '') + ' GROUP BY level').all(...(client ? [client] : [])); },
+    deleteActivity(clientId) { return q('DELETE FROM activity WHERE client_id = ?').run(clientId).changes; },
     close() { db.close(); }
   };
   return S;
