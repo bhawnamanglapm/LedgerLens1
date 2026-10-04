@@ -641,7 +641,7 @@ Page 1 of 12</pre></div>
 <sc-if value="{{hasRisk}}" hint-placeholder-val="{{true}}">
 <section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:28px">
 <div style="display:flex;flex-direction:column;gap:14px">
-<div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">CREDIT RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">CREDIT RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div><button type="button" onClick="{{risk.scoreInfo.infoToggle}}" aria-expanded="{{risk.scoreInfo.infoExp}}" aria-label="{{risk.scoreInfo.infoLabel}}" title="How this score is calculated" style="{{risk.scoreInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
 <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
 <span class="mono" style="font-size:72px;font-weight:600;line-height:1;letter-spacing:-.03em">{{risk.total}}</span>
 <span class="mono" style="font-size:16px;color:#4A4F58">/ 1000</span>
@@ -656,14 +656,16 @@ Page 1 of 12</pre></div>
 <div class="mono" style="display:grid;grid-template-columns:50fr 10fr 10fr 10fr 20fr;font-size:10.5px;color:#4A4F58">
 <span>Poor &lt;500</span><span>BA</span><span>Fair</span><span>Good</span><span>Excellent 800+</span>
 </div>
+<sc-if value="{{risk.scoreInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{risk.scoreInfo.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{risk.scoreInfo.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{risk.scoreInfo.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 <div style="display:flex;flex-direction:column;gap:12px">
-<div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DECISION RECOMMENDATION</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DECISION RECOMMENDATION</div><button type="button" onClick="{{risk.decInfo.infoToggle}}" aria-expanded="{{risk.decInfo.infoExp}}" aria-label="{{risk.decInfo.infoLabel}}" title="Why this decision" style="{{risk.decInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
 <div><span style="{{risk.decStyle}}">{{risk.decision}}</span></div>
 <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
 <sc-for list="{{risk.why}}" as="w" hint-placeholder-count="2"><li>{{w.w}}</li></sc-for>
 </ul>
 <p style="margin:0;font-size:12px;color:#4A4F58">Policy: band sets the base decision (Excellent/Good → APPROVE, Fair → WITH CONDITIONS, Below Average → REFER, Poor → DECLINE); hard rules override it (FOIR &gt; 65% → DECLINE; tampering, structuring or circular flows → REFER).</p>
+<sc-if value="{{risk.decInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{risk.decInfo.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{risk.decInfo.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{risk.decInfo.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 </section>
 <section aria-label="Export" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
@@ -684,7 +686,7 @@ Page 1 of 12</pre></div>
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:10px">
 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
 <span style="font-weight:600;font-size:15px">{{c.name}}</span>
-<span class="mono" style="font-size:12px;color:#4A4F58">weight {{c.wS}}</span>
+<span class="mono" style="font-size:12px;color:#4A4F58">weight {{c.wS}}</span><button type="button" onClick="{{c.infoToggle}}" aria-expanded="{{c.infoExp}}" aria-label="{{c.infoLabel}}" title="How this part of the score works" style="{{c.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button>
 </div>
 <div style="display:flex;align-items:baseline;gap:8px"><span class="mono" style="font-size:30px;font-weight:600;line-height:1">{{c.sS}}</span><span class="mono" style="color:#4A4F58;font-size:12px">/100 → {{c.pts}} pts</span></div>
 <div style="height:6px;background:#ECEAE4;border-radius:3px"><div style="{{c.barStyle}}"></div></div>
@@ -693,6 +695,7 @@ Page 1 of 12</pre></div>
 <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px dotted #DAD8D2;padding-bottom:4px"><dt style="color:#4A4F58">{{m.k}}</dt><dd class="mono" style="margin:0;text-align:right;font-weight:500">{{m.v}}</dd></div>
 </sc-for>
 </dl>
+<sc-if value="{{c.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{c.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{c.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{c.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 </sc-for>
 </section>
@@ -1028,6 +1031,56 @@ Page 1 of 12</pre></div>
 </section>
 </sc-if>
 
+<sc-if value="{{isKnowScore}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #1F4FD1">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">IN ONE LINE</span>
+<p style="margin:0;font-size:15px;color:#16181D"><strong>Six areas are marked out of 100, weighted and added into a score out of 1000. The score sets a starting decision, and a few serious red flags can override it.</strong></p>
+<p style="margin:0;font-size:13px;color:#4A4F58;max-width:72ch">On the Risk summary, press <strong>ⓘ</strong> next to the score, the decision or any card to see the same calculation with your own statement's numbers.</p>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">From statement to decision in five steps</h2>
+<ol style="margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px">
+<sc-for list="{{knScoreSteps}}" as="x" hint-placeholder-count="5">
+<li style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;gap:6px"><span class="mono" style="font-size:12px;font-weight:700;color:#1F4FD1">STEP {{x.n}}</span><strong style="font-size:13.5px">{{x.t}}</strong><span style="font-size:12.5px;color:#30343B">{{x.d}}</span></li>
+</sc-for>
+</ol>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">The six areas</h2>
+<p style="margin:0;font-size:13px;color:#30343B">The example on each card is the 3-account practice statement (Rohan Mehta, Jan–Mar 2025).</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:12px">
+<sc-for list="{{knScoreAreas}}" as="a" hint-placeholder-count="6">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;gap:6px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><strong style="font-size:14.5px">{{a.name}}</strong><span class="mono" style="font-size:12px;color:#4A4F58">weight {{a.w}}</span></div>
+<span style="font-size:13.5px;color:#16181D;font-weight:600">{{a.q}}</span>
+<span style="font-size:12.5px;color:#4A4F58;font-style:italic">{{a.like}}</span>
+<span style="font-size:12.5px;color:#30343B">{{a.looks}}</span>
+<span class="mono" style="font-size:11.5px;color:#1F4FD1;border-top:1px solid #E4E1DA;padding-top:6px">Example: {{a.ex}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Hard rules that override the score</h2>
+<sc-for list="{{knScoreRules}}" as="r" hint-placeholder-count="5">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px"><strong style="font-size:13.5px">{{r.t}}</strong><span style="font-size:13px;color:#30343B">{{r.d}}</span></div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Worked example: Rohan Mehta</h2>
+<p style="margin:0;font-size:13px;color:#30343B">Steady salary and a healthy balance, but two warning signs.</p>
+<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px">
+<sc-for list="{{knScoreExample}}" as="e" hint-placeholder-count="9"><span style="font-weight:600;color:#4A4F58">{{e.k}}</span><span class="mono" style="color:#16181D;font-size:12.5px">{{e.v}}</span></sc-for>
+</div>
+<p style="margin:0;font-size:12.5px;color:#4A4F58">The six rounded points add up to 778; the app adds the exact values (776.97) and rounds once, so the total is 777.</p>
+</div>
+</section>
+</sc-if>
+
 <sc-if value="{{isKnowFaq}}" hint-placeholder-val="{{false}}">
 <section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #1F4FD1">
 <span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">FREQUENTLY ASKED QUESTIONS</span>
@@ -1301,12 +1354,74 @@ class Component extends DCLogic {
     return out.map((p, i) => ({ index: i + 1, text: p.text, chars: p.text.length }));
   }
 
+  // ---------- plain-language explanations of the risk summary (the ⓘ buttons), using this statement's own numbers ----------
+  riskExplain(R) {
+    const P = R.parts; const r = (x) => Math.round(x); const r1 = (x) => Math.round(x * 10) / 10; const pc = (x) => r1(x * 100) + '%'; const rs = (x) => '₹' + this.fmt0(x);
+    const pts = (c) => r(c.s * c.w * 10);
+    const comp = {};
+    const add = (key, what, how, mine) => { comp[key] = { what, how: how.map((t) => ({ t })), mine: mine.map((t) => ({ t })) }; };
+    add('income', 'Does money come in reliably every month? Only real earnings count: salary, business income, interest and rent. Money from friends, refunds, loans received and transfers between own accounts are left out.',
+      ['Steadiness of the main income, 40%: 100 minus 2.5 points for every 1% the monthly amounts vary (scored lower if a month has none)', 'Number of income sources, 20%: 3 or more = 100, 2 = 85, 1 = 60', 'Growth from the first to the last month, 20%: +5% or more = 100, flat = 80, small fall = 60, bigger fall = 30', 'Income level, 20%: ₹1 lakh a month or more = 100, less scales down'],
+      ['Main income varies ' + pc(R.cv) + ' between months → ' + r(P.income.sReg) + '/100', R.incomeCats.length + ' source(s): ' + (R.incomeCats.join(', ') || 'none') + ' → ' + P.income.sDiv + '/100', 'Growth ' + pc(R.growth) + ' → ' + P.income.sGrow + '/100', 'Average ' + rs(R.avgInc) + ' a month → ' + r(P.income.sLvl) + '/100']);
+    add('debt', 'How much of the income already goes to loan EMIs, and are they paid on time? FOIR (Fixed Obligation to Income Ratio) is the share of monthly income taken by EMIs.',
+      ['FOIR, 50%: up to 30% = 100, 30–40% = 85, 40–50% = 70, 50–60% = 45, above 60% = 20. Above 65% the decision is Decline, whatever the score', 'EMI bounce rate, 25%: 100 minus 3 points for every 1% of EMIs that bounced', 'On-time payment rate, 25%: the share of EMIs paid without a bounce'],
+      [R.loanList.length + ' loan(s), ' + rs(R.monthlyEmi) + ' a month ÷ income ' + rs(R.avgInc) + ' = FOIR ' + pc(R.foir) + ' → ' + P.debt.sFoir + '/100', R.bounced + ' bounce(s) in ' + R.presented + ' EMI attempt(s) = ' + pc(R.bounceRate) + ' → ' + r(P.debt.sBounce) + '/100', 'On time ' + pc(R.ontimeRate) + ' → ' + r(P.debt.sOn) + '/100']);
+    add('liq', 'Is there a cushion of money in the bank? Uses the balance at the end of every day across the savings / current accounts (credit cards are left out).',
+      ['Average balance compared with one month\'s income, 50%: 1× or more = 100, 0.5× = 80, 0.25× = 60, 0.1× = 40, less = 20', 'Lowest balance compared with one month\'s EMIs, 30%: 1× or more = 100, 0.5× = 75, 0.2× = 50, less = 25', 'Days below zero, 20%: 100 minus 10 points per day'],
+      ['Average ' + rs(R.avgEod) + ' = ' + r1(P.liq.r1) + '× a month\'s income → ' + P.liq.sAvg + '/100', 'Lowest ' + rs(R.minEod) + (R.monthlyEmi ? ' = ' + r1(P.liq.r2) + '× a month\'s EMIs' : ' (no EMIs)') + ' → ' + P.liq.sMin + '/100', R.negDays + ' day(s) below zero out of ' + R.eodDays + ' → ' + r(P.liq.sNeg) + '/100']);
+    add('bank', 'Is the account handled carefully? Starts at 100 and loses points for each problem.',
+      ['Each bounced payment: −25', 'Each penalty fee (for example a late-payment fee): −10', 'Each day below zero (overdraft): −5', 'Bank fees and charges: −1 point per ₹250, at most −20'],
+      [R.bounced + ' bounce(s) → −' + R.bounced * 25, R.penalties.length + ' penalty fee(s) → −' + R.penalties.length * 10, R.negDays + ' day(s) below zero → −' + R.negDays * 5, 'Fees and charges ' + rs(R.chargeAmt) + ' → −' + r1(P.bank.chargePts), 'Result: ' + r(R.comps.find((c) => c.key === 'bank').s) + '/100']);
+    add('fraud', 'Is anything suspicious? Starts at 100 and loses points for each warning sign.',
+      ['Statement edited (a printed balance doesn\'t add up): −40, and the decision becomes Refer', 'Circular money (same amount in and back out with the same person within 3 days): −20 each, and Refer', 'Pass-through (₹50,000+ in and 90% out again within a day): −15 each', 'Structuring (3+ cash deposits of ₹40,000–50,000 within 30 days, just under the ₹50,000 PAN limit): −35, and Refer'],
+      [(R.integrity.length ? R.integrity.length + ' balance mismatch(es) → −40' : 'Balances add up on every row → 0'), R.circular.length + ' circular movement(s) → −' + R.circular.length * 20, R.overnight.length + ' pass-through(s) → −' + R.overnight.length * 15, (R.structuring.length ? 'Structuring found → −35' : 'No structuring → 0'), 'Result: ' + r(R.comps.find((c) => c.key === 'fraud').s) + '/100']);
+    add('exp', 'Is spending sensible? Spending here leaves out EMIs, investments and transfers between own accounts.',
+      ['Share of optional spending (eating out, shopping, entertainment), 40%: up to 30% = 100, 40% = 85, 50% = 70, more = 50', 'Spending trend first → last month, 30%: steady or falling = 100, up to +15% = 75, more = 50', 'Savings after EMIs (income − spending − EMIs) ÷ income, 30%: 25%+ = 100, 15% = 80, 5% = 60, less = 30', 'Fixed vs variable spending is shown for information and does not change the score'],
+      ['Optional spending ' + pc(R.discShare) + ' → ' + P.exp.sDisc + '/100', 'Trend ' + pc(R.expTrend) + ' → ' + P.exp.sTrend + '/100', 'Saved after EMIs ' + pc(R.savingsRate) + ' → ' + P.exp.sSav + '/100']);
+    const rows = R.comps.map((c) => ({ t: c.name + ': ' + r(c.s) + '/100 × ' + r(c.w * 100) + '% × 10 = ' + pts(c) + ' points' }));
+    const score = { what: 'Like a report-card total: six areas are each marked out of 100, multiplied by their weight, then by 10. A perfect applicant scores 1000.',
+      how: [{ t: 'Bands: 800+ Excellent · 700–799 Good · 600–699 Fair · 500–599 Below Average · below 500 Poor' }],
+      mine: rows.concat([{ t: 'Total: ' + R.total + ' / 1000 → ' + R.band + ' (exact values are added before rounding)' }]) };
+    const overrides = R.why.filter((w) => !/^Band "/.test(w));
+    const decision = { what: 'The band gives a starting recommendation; some red flags are serious enough to change it, whatever the score.',
+      how: [{ t: 'Starting point from the band: Excellent / Good → Approve, Fair → Approve with conditions, Below Average → Refer, Poor → Decline' }, { t: 'Hard rules: no verifiable income or FOIR above 65% → Decline; edited statement, structuring or circular money → Refer; any EMI bounce → at most Approve with conditions' }],
+      mine: [{ t: 'Band ' + R.band + ' → starting point ' + P.baseDecision }].concat(overrides.length ? overrides.map((w) => ({ t: (/penalty fee/.test(w) ? 'Note (does not change the decision): ' : 'Rule: ') + w })) : [{ t: 'No hard rule applied' }]).concat([{ t: 'Final recommendation: ' + R.decision }]) };
+    return { comp, score, decision };
+  }
+
   // ---------- knowledge sharing (plain-language guides shown under the Knowledge sharing tab) ----------
   knowledge(s) {
     const kt = s.knowTab || 'llm';
-    const topics = [['llm', 'HOW IT WORKS', 'Why an LLM?', 'Where AI reads the statement, and where plain code decides.'], ['cibil', 'ARTICLE', 'CIBIL score vs this analyzer', 'Two different questions a lender asks, and why they use both.'], ['faq', 'FAQ', 'Common questions', 'Scores, decisions, red flags and data safety in plain words.']];
+    const topics = [['llm', 'HOW IT WORKS', 'Why an LLM?', 'Where AI reads the statement, and where plain code decides.'], ['cibil', 'ARTICLE', 'CIBIL score vs this analyzer', 'Two different questions a lender asks, and why they use both.'], ['score', 'GUIDE', 'How the score is calculated', 'The six parts of the 0–1000 score and the decision, with a worked example.'], ['faq', 'FAQ', 'Common questions', 'Scores, decisions, red flags and data safety in plain words.']];
     return {
-      isKnowLlm: kt === 'llm', isKnowCibil: kt === 'cibil', isKnowFaq: kt === 'faq',
+      isKnowLlm: kt === 'llm', isKnowCibil: kt === 'cibil', isKnowFaq: kt === 'faq', isKnowScore: kt === 'score',
+      knScoreAreas: [
+        { name: 'Income Stability', w: '25%', q: 'Does money come in reliably every month?', like: 'Like checking that a tenant\'s salary arrives on the same date every month.', looks: 'Monthly income by type, how steady it is, how many sources, growth, and the amount. Only salary, business income, interest and rent count.', ex: '₹1,67,111 a month, varies only 1.9%, 3 sources, up 8.9% → 98/100 → 245 points' },
+        { name: 'Debt Service', w: '20%', q: 'How much of the income already goes to loans, and are they paid on time?', like: 'Like asking how much of each pay cheque is already promised to other lenders.', looks: 'Loan EMIs found in the statement, FOIR (EMIs ÷ income), bounced EMIs, on-time payments. FOIR above 65% means Decline.', ex: '3 loans, ₹61,750 a month = FOIR 37%, 1 bounce in 8 attempts → 80/100 → 159 points' },
+        { name: 'Liquidity', w: '15%', q: 'Is there a cushion of money in the bank?', like: 'Like checking that someone has savings to fall back on if a month goes badly.', looks: 'Average and lowest end-of-day balance, and days the account went below zero.', ex: 'Average ₹2,07,357 (1.2× a month\'s income), lowest ₹33,579, 1 day below zero → 91/100 → 136 points' },
+        { name: 'Banking Behaviour', w: '10%', q: 'Is the account handled carefully?', like: 'Like a driving record: points are lost for every incident.', looks: 'Starts at 100 and loses points for bounced payments (−25), penalty fees (−10), days below zero (−5) and bank charges (up to −20).', ex: '1 bounce, 1 late fee, 1 overdraft day, ₹2,309 of charges → 51/100 → 51 points' },
+        { name: 'Fraud Indicators', w: '15%', q: 'Is anything suspicious?', like: 'Like a security check at the airport: most people pass, a few things need a second look.', looks: 'Edited statements (balances that don\'t add up), money that goes in and straight back out, large pass-through amounts, and cash deposits kept just under ₹50,000.', ex: 'Balances add up; 1 circular movement (−20) and 1 structuring pattern (−35) → 45/100 → 68 points' },
+        { name: 'Expense Management', w: '15%', q: 'Is spending sensible?', like: 'Like a household budget: needs first, wants within reason, something left over.', looks: 'Share of optional spending, whether spending is rising, and how much is left after spending and EMIs.', ex: '27.5% optional, spending down 33%, but −3% left after EMIs → 79/100 → 119 points' }
+      ],
+      knScoreSteps: [
+        { n: '1', t: 'Read and sort every transaction', d: 'Salary, EMIs, bills, shopping, transfers and so on. Money from friends, refunds and loans received is never counted as income.' },
+        { n: '2', t: 'Mark six areas out of 100', d: 'Each area has a few simple rules, shown in the cards below. For example, FOIR up to 30% scores 100, 30–40% scores 85.' },
+        { n: '3', t: 'Weight and add', d: 'Each mark is multiplied by its weight and by 10, then added: a perfect applicant scores 1000.' },
+        { n: '4', t: 'Place it in a band', d: '800+ Excellent · 700–799 Good · 600–699 Fair · 500–599 Below Average · below 500 Poor.' },
+        { n: '5', t: 'Start from the band, then apply the hard rules', d: 'Excellent or Good starts as Approve, Fair as Approve with conditions, Below Average as Refer, Poor as Decline. Serious red flags can override that.' }
+      ],
+      knScoreRules: [
+        { t: 'No verifiable income → Decline', d: 'Without salary, business income, interest or rent, repayment capacity cannot be measured.' },
+        { t: 'FOIR above 65% → Decline', d: 'Existing EMIs already take most of the income; another loan is not affordable.' },
+        { t: 'Edited statement → Refer', d: 'A printed balance that doesn\'t add up can mean the PDF was changed. A person must check the original.' },
+        { t: 'Structuring or circular money → Refer', d: 'Cash kept just under ₹50,000, or money that goes in and straight back out, can hide the real picture. A person must look.' },
+        { t: 'Any EMI bounce → at most Approve with conditions', d: 'For example, the new EMI must be collected automatically from the salary account (a NACH mandate).' }
+      ],
+      knScoreExample: [
+        { k: 'Income Stability', v: '98 × 25% × 10 = 245' }, { k: 'Debt Service', v: '80 × 20% × 10 = 159' }, { k: 'Liquidity', v: '91 × 15% × 10 = 136' },
+        { k: 'Banking Behaviour', v: '51 × 10% × 10 = 51' }, { k: 'Fraud Indicators', v: '45 × 15% × 10 = 68' }, { k: 'Expense Management', v: '79 × 15% × 10 = 119' },
+        { k: 'Total', v: '777 / 1000 → Good → starts as Approve' }, { k: 'Hard rules', v: 'Structuring and a circular movement → Refer' }, { k: 'Final', v: 'REFER: a credit officer looks before lending' }
+      ],
       knTopics: topics.map(([k, tag, label, sub]) => ({ tag, label, sub, current: kt === k ? 'page' : 'false',
         style: kt === k ? 'background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1' : 'background:#FFFFFF;color:#16181D;border:1px solid #DAD8D2',
         tagStyle: kt === k ? 'color:#DCE4FA' : 'color:#1F4FD1', subStyle: kt === k ? 'color:#E6ECFB' : 'color:#4A4F58',
@@ -1352,7 +1467,7 @@ class Component extends DCLogic {
           { q: 'What is OCR?', a: 'Optical character recognition: software that reads the text in a picture. It lets the app understand scanned pages and phone photos, not just digital PDFs. Blurry or tilted images can cause reading mistakes, which the balance checks catch.' }
         ] },
         { group: 'Scores and decisions', items: [
-          { q: 'What does the 0–1000 score mean?', a: 'It combines six areas: income stability (25%), existing debt (20%), cash cushion (15%), banking habits (10%), fraud signals (15%) and spending habits (15%). 800 and above is Excellent, 700–799 Good, 600–699 Fair, 500–599 Below Average, and below 500 Poor.' },
+          { q: 'What does the 0–1000 score mean?', a: 'It combines six areas: income stability (25%), existing debt (20%), cash cushion (15%), banking habits (10%), fraud signals (15%) and spending habits (15%). 800 and above is Excellent, 700–799 Good, 600–699 Fair, 500–599 Below Average, and below 500 Poor. Open "How the score is calculated" at the top of this page for a worked example, or press ⓘ on the Risk summary to see the calculation for your own statement.' },
           { q: 'What do the four decisions mean?', a: 'Approve: go ahead. Approve with conditions: go ahead with a safeguard, for example an automatic EMI mandate on the salary account. Refer: a person must look before deciding, usually because something looks suspicious. Decline: the loan should not be given, for example because existing EMIs already take most of the income.' },
           { q: 'What is FOIR?', a: 'Fixed Obligation to Income Ratio: how much of each month\'s income already goes to loan EMIs. If you earn ₹1,00,000 and pay ₹40,000 in EMIs, FOIR is 40%. Above 65% the app recommends Decline, whatever the score.' },
           { q: 'What is an EMI bounce?', a: 'When a loan instalment is collected from your account but there is not enough money, so the bank returns it unpaid and usually charges a fee. One bounce turns Approve into Approve with conditions.' },
@@ -2442,8 +2557,11 @@ class Component extends DCLogic {
     if (bounced) { if (decision === 'APPROVE') decision = 'APPROVE WITH CONDITIONS'; why.push('EMI bounce in the period — condition: NACH mandate on the salary account'); }
     if (penalties.length) why.push(penalties.length + ' penalty fee(s)' + (penalties.every((t) => t.acct && t.acct.card) ? ' on the credit card' : ''));
     if (!why.length) why.push('Band "' + band + '" maps to ' + decision + ' under the default policy');
+    const baseDecision = { Excellent: 'APPROVE', Good: 'APPROVE', Fair: 'APPROVE WITH CONDITIONS', 'Below Average': 'REFER', Poor: 'DECLINE' }[band];
+    const parts = { income: { sReg, sDiv, sGrow, sLvl }, debt: { sFoir, sBounce: this.clamp(100 - bounceRate * 300, 0, 100), sOn: this.clamp(ontimeRate * 100, 0, 100) },
+      liq: { sAvg, sMin, sNeg: this.clamp(100 - negDays * 10, 0, 100), r1, r2 }, bank: { chargePts: Math.min(20, chargeAmt / 250) }, exp: { sDisc, sTrend, sSav }, baseDecision };
     return {
-      months, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
+      parts, months, comps, total, band, decision, why, incomeByCat, income, avgInc, cv, growth, shareTop, incomeCats, loanList, monthlyEmi, foir, bounceRate, ontimeRate, bounced, presented,
       avgEod, minEod, negDays, eodDays: eod.length, bounceCharges, penalties, chargeAmt, integrity, circular, overnight, structuring, exp, essM, discM, fixM, discShare, fixedShare, expTrend, savingsRate, totExp
     };
   }
@@ -3125,7 +3243,9 @@ class Component extends DCLogic {
         fraud: [metric('Balance arithmetic', R.integrity.length ? R.integrity.length + ' mismatch(es)' : 'Intact on ' + T.length + ' rows'), metric('Circular transactions', R.circular.length + ''), metric('Overnight pass-through', R.overnight.length + ''), metric('Structuring patterns', R.structuring.length ? R.structuring[0].count + ' cash deposits ₹40–50k in 30 days' : 'None')],
         exp: [metric('Essential vs discretionary', this.pct(1 - R.discShare) + ' / ' + this.pct(R.discShare)), metric('Fixed vs variable', this.pct(R.fixedShare) + ' / ' + this.pct(1 - R.fixedShare)), metric('Spend trend first→last month', this.pct(R.expTrend)), metric('Savings rate after EMI', this.pct(R.savingsRate))]
       };
-      const comps = R.comps.map((c) => ({ ...c, sS: Math.round(c.s), wS: Math.round(c.w * 100) + '%', pts: Math.round(c.s * c.w * 10), barStyle: 'height:6px;border-radius:3px;width:' + Math.round(c.s) + '%;background:' + (c.s >= 75 ? '#1F4FD1' : c.s >= 55 ? '#B88A00' : '#B42318'), metrics: compDetail[c.key] }));
+      const X = this.riskExplain(R); const op = s.openInfo || {};
+      const infoBits = (key, label) => ({ infoOpen: !!op[key], infoExp: op[key] ? 'true' : 'false', infoLabel: (op[key] ? 'Hide' : 'Show') + ' how ' + label + ' works', infoToggle: () => this.infoToggle(key), infoBtn: op[key] ? 'background:#1F4FD1;color:#FFFFFF;border-color:#1F4FD1' : 'background:#FFFFFF;color:#1F4FD1;border-color:#9EB0E6' });
+      const comps = R.comps.map((c) => ({ ...c, ...infoBits('R' + c.key, c.name), ex: X.comp[c.key], sS: Math.round(c.s), wS: Math.round(c.w * 100) + '%', pts: Math.round(c.s * c.w * 10), barStyle: 'height:6px;border-radius:3px;width:' + Math.round(c.s) + '%;background:' + (c.s >= 75 ? '#1F4FD1' : c.s >= 55 ? '#B88A00' : '#B42318'), metrics: compDetail[c.key] }));
       const flags = [];
       R.integrity.forEach((x) => flags.push({ t: 'Balance mismatch', d: this.dispDate(x.t.date) + ' · expected ' + this.fmt(x.exp) + ', statement shows ' + this.fmt(x.t.bal) }));
       R.circular.forEach((x) => flags.push({ t: 'Circular transaction', d: x.a.cp + ': in ₹' + this.fmt0(x.a.amount) + ' on ' + this.dispDate(x.a.date) + ', out ₹' + this.fmt0(x.b.amount) + ' on ' + this.dispDate(x.b.date) }));
@@ -3137,6 +3257,7 @@ class Component extends DCLogic {
       }));
       const incTable = R.incomeByCat.map((c) => ({ cat: c.cat, cells: c.vals.map((v) => ({ v: v ? this.fmt0(v) : '–' })) }));
       risk = {
+        scoreInfo: { ...infoBits('Rscore', 'the score'), ex: X.score }, decInfo: { ...infoBits('Rdecision', 'the decision'), ex: X.decision },
         total: R.total, band: R.band, decision: R.decision, why: R.why.map((w) => ({ w })), comps, flags, hasFlags: flags.length > 0, monthsV, incTable, monthHeads: R.months.map((m) => ({ m: this.monthLabel(m) })),
         loans: R.loanList.map((l) => ({ ...l, mS: '₹' + this.fmt0(l.monthly), b: l.bounced ? l.bounced + ' bounce' : 'Clean', bStyle: l.bounced ? 'color:#B42318;font-weight:600' : 'color:#1F4FD1;font-weight:600' })), hasLoans: R.loanList.length > 0,
         marker: 'position:absolute;top:-6px;width:3px;height:30px;background:#16181D;left:' + (R.total / 10) + '%',
@@ -3182,7 +3303,7 @@ class Component extends DCLogic {
       ocrCanPreload: s.ocrState.st === 'idle' || s.ocrState.st === 'error', ocrPreloadLabel: s.ocrState.st === 'error' ? 'Retry loading' : 'Preload OCR engine',
       preloadOcr: () => { this.log('USER', 'OCR', 'OCR engine preload requested'); this.ocrEngine().catch(() => {}); },
       showBatches: !!s.showBatches, batchExp: s.showBatches ? 'true' : 'false', batchBtn: s.showBatches ? 'Hide details' : 'Show details', toggleBatches: () => this.setState({ showBatches: !this.state.showBatches }), batchSummary: (s.batches || []).length + ' batch' + ((s.batches || []).length === 1 ? '' : 'es') + ' · ' + (s.batches || []).reduce((a, b) => a + (+b.rows || 0), 0) + ' rows read',
-      pageTitle: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser and, when a server is connected, saved on the server for the whole team.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[0], pageSub: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser and, when a server is connected, saved on the server for the whole team.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[1],
+      pageTitle: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser and, when a server is connected, saved on the server for the whole team.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, how the score is calculated, and answers to common questions.'] }[s.tab] || ['', ''])[0], pageSub: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser and, when a server is connected, saved on the server for the whole team.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, how the score is calculated, and answers to common questions.'] }[s.tab] || ['', ''])[1],
       showPreview: !!s.showPreview, previewExp: s.showPreview ? 'true' : 'false', previewBtn: s.showPreview ? 'Hide text' : 'Show text', togglePreview: () => this.setState({ showPreview: !this.state.showPreview }),
       isHome: s.tab === 'home', notHome: s.tab !== 'home',
       isKnow: s.tab === 'know',
@@ -3214,7 +3335,7 @@ class Component extends DCLogic {
         { n: 'B', title: 'Sort every transaction', what: 'Gives each row a category such as Salary, EMI, Rent or Refund, with a confidence score.', points: [{ t: 'Rules first, then the AI step, then a person for what is still unclear' }, { t: 'Keeps person-to-person transfers and refunds out of income' }, { t: 'Your own CSV can extend or replace the categories' }], out: 'Category, confidence and method on every row' },
         { n: 'C', title: 'Score the applicant', what: 'Combines six parts into a score out of 1000, a rating band and a decision.', points: [{ t: 'Income, debt, liquidity, banking behaviour, fraud signals, spending' }, { t: 'Lists the reasons behind the decision' }, { t: 'Exports everything as JSON' }], out: 'Score, band, decision and reasons' }
       ],
-      homeTabs: [['ingest', '02', 'Ingest', 'Upload statements and see how each step went.'], ['txns', '03', 'Transactions', 'Every row with its category and confidence.'], ['review', '04', 'Review queue', 'Decide the few items that can change the outcome.'], ['risk', '05', 'Risk summary', 'Score, decision, reasons and JSON export.'], ['log', '06', 'Activity log', 'History of every run and step.'], ['tax', '07', 'Taxonomy & rules', 'Categories, keywords and your own rules.'], ['know', '08', 'Knowledge sharing', 'Why an LLM is used, CIBIL vs this analyzer, and an FAQ.']].map(([k, num, label, desc]) => ({ num, label, desc, go: () => { this.setState({ tab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} } })),
+      homeTabs: [['ingest', '02', 'Ingest', 'Upload statements and see how each step went.'], ['txns', '03', 'Transactions', 'Every row with its category and confidence.'], ['review', '04', 'Review queue', 'Decide the few items that can change the outcome.'], ['risk', '05', 'Risk summary', 'Score, decision, reasons and JSON export.'], ['log', '06', 'Activity log', 'History of every run and step.'], ['tax', '07', 'Taxonomy & rules', 'Categories, keywords and your own rules.'], ['know', '08', 'Knowledge sharing', 'Why an LLM is used, CIBIL vs this analyzer, how the score works, and an FAQ.']].map(([k, num, label, desc]) => ({ num, label, desc, go: () => { this.setState({ tab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} } })),
       homeWeights: [['Income stability', 'how regular and steady income is', 25], ['Debt service', 'EMIs as a share of income, bounces', 20], ['Liquidity', 'balances kept in the account', 15], ['Banking behaviour', 'bounces, penalties, overdraft', 10], ['Fraud indicators', 'tampering and suspicious flows', 15], ['Expense management', 'spending pattern and savings', 15]].map(([name, what, pct]) => ({ name, what, pct, bar: 'height:6px;border-radius:3px;background:#1F4FD1;width:' + (pct * 4) + '%' })),
       homeBands: [['Excellent', '800+', 'Approve', '#EAF6EE', '#14532D'], ['Good', '700–799', 'Approve', '#EAF6EE', '#14532D'], ['Fair', '600–699', 'With conditions', '#FFF8E6', '#5C4300'], ['Below average', '500–599', 'Refer', '#FFF6EC', '#7A3A06'], ['Poor', '<500', 'Decline', '#FDF0EE', '#7A1A12']].map(([band, range, dec, bg, fg]) => ({ band, range, dec, style: 'background:' + bg + ';color:' + fg })),
       setAiRules: () => this.setState({ aiMode: 'rules', aiModeChosen: true }),

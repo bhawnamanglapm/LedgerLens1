@@ -641,7 +641,7 @@ Page 1 of 12</pre></div>
 <sc-if value="{{hasRisk}}" hint-placeholder-val="{{true}}">
 <section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:28px">
 <div style="display:flex;flex-direction:column;gap:14px">
-<div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">CREDIT RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">CREDIT RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div><button type="button" onClick="{{risk.scoreInfo.infoToggle}}" aria-expanded="{{risk.scoreInfo.infoExp}}" aria-label="{{risk.scoreInfo.infoLabel}}" title="How this score is calculated" style="{{risk.scoreInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
 <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
 <span class="mono" style="font-size:72px;font-weight:600;line-height:1;letter-spacing:-.03em">{{risk.total}}</span>
 <span class="mono" style="font-size:16px;color:#4A4F58">/ 1000</span>
@@ -656,14 +656,16 @@ Page 1 of 12</pre></div>
 <div class="mono" style="display:grid;grid-template-columns:50fr 10fr 10fr 10fr 20fr;font-size:10.5px;color:#4A4F58">
 <span>Poor &lt;500</span><span>BA</span><span>Fair</span><span>Good</span><span>Excellent 800+</span>
 </div>
+<sc-if value="{{risk.scoreInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{risk.scoreInfo.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{risk.scoreInfo.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{risk.scoreInfo.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 <div style="display:flex;flex-direction:column;gap:12px">
-<div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DECISION RECOMMENDATION</div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DECISION RECOMMENDATION</div><button type="button" onClick="{{risk.decInfo.infoToggle}}" aria-expanded="{{risk.decInfo.infoExp}}" aria-label="{{risk.decInfo.infoLabel}}" title="Why this decision" style="{{risk.decInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
 <div><span style="{{risk.decStyle}}">{{risk.decision}}</span></div>
 <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
 <sc-for list="{{risk.why}}" as="w" hint-placeholder-count="2"><li>{{w.w}}</li></sc-for>
 </ul>
 <p style="margin:0;font-size:12px;color:#4A4F58">Policy: band sets the base decision (Excellent/Good → APPROVE, Fair → WITH CONDITIONS, Below Average → REFER, Poor → DECLINE); hard rules override it (FOIR &gt; 65% → DECLINE; tampering, structuring or circular flows → REFER).</p>
+<sc-if value="{{risk.decInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{risk.decInfo.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{risk.decInfo.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{risk.decInfo.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 </section>
 <section aria-label="Export" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:14px 18px;display:flex;flex-direction:column;gap:10px">
@@ -684,7 +686,7 @@ Page 1 of 12</pre></div>
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:10px">
 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
 <span style="font-weight:600;font-size:15px">{{c.name}}</span>
-<span class="mono" style="font-size:12px;color:#4A4F58">weight {{c.wS}}</span>
+<span class="mono" style="font-size:12px;color:#4A4F58">weight {{c.wS}}</span><button type="button" onClick="{{c.infoToggle}}" aria-expanded="{{c.infoExp}}" aria-label="{{c.infoLabel}}" title="How this part of the score works" style="{{c.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button>
 </div>
 <div style="display:flex;align-items:baseline;gap:8px"><span class="mono" style="font-size:30px;font-weight:600;line-height:1">{{c.sS}}</span><span class="mono" style="color:#4A4F58;font-size:12px">/100 → {{c.pts}} pts</span></div>
 <div style="height:6px;background:#ECEAE4;border-radius:3px"><div style="{{c.barStyle}}"></div></div>
@@ -693,6 +695,7 @@ Page 1 of 12</pre></div>
 <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px dotted #DAD8D2;padding-bottom:4px"><dt style="color:#4A4F58">{{m.k}}</dt><dd class="mono" style="margin:0;text-align:right;font-weight:500">{{m.v}}</dd></div>
 </sc-for>
 </dl>
+<sc-if value="{{c.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{c.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{c.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{c.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 </sc-for>
 </section>
@@ -1025,6 +1028,56 @@ Page 1 of 12</pre></div>
 <sc-for list="{{knCibilToday}}" as="t" hint-placeholder-count="3">
 <div style="display:flex;gap:10px;font-size:13px;color:#30343B"><span aria-hidden="true" style="color:#1F4FD1;font-weight:700">→</span><span><strong>{{t.t}}</strong> {{t.d}}</span></div>
 </sc-for>
+</section>
+</sc-if>
+
+<sc-if value="{{isKnowScore}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #1F4FD1">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">IN ONE LINE</span>
+<p style="margin:0;font-size:15px;color:#16181D"><strong>Six areas are marked out of 100, weighted and added into a score out of 1000. The score sets a starting decision, and a few serious red flags can override it.</strong></p>
+<p style="margin:0;font-size:13px;color:#4A4F58;max-width:72ch">On the Risk summary, press <strong>ⓘ</strong> next to the score, the decision or any card to see the same calculation with your own statement's numbers.</p>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">From statement to decision in five steps</h2>
+<ol style="margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:10px">
+<sc-for list="{{knScoreSteps}}" as="x" hint-placeholder-count="5">
+<li style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;gap:6px"><span class="mono" style="font-size:12px;font-weight:700;color:#1F4FD1">STEP {{x.n}}</span><strong style="font-size:13.5px">{{x.t}}</strong><span style="font-size:12.5px;color:#30343B">{{x.d}}</span></li>
+</sc-for>
+</ol>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">The six areas</h2>
+<p style="margin:0;font-size:13px;color:#30343B">The example on each card is the 3-account practice statement (Rohan Mehta, Jan–Mar 2025).</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:12px">
+<sc-for list="{{knScoreAreas}}" as="a" hint-placeholder-count="6">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;gap:6px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><strong style="font-size:14.5px">{{a.name}}</strong><span class="mono" style="font-size:12px;color:#4A4F58">weight {{a.w}}</span></div>
+<span style="font-size:13.5px;color:#16181D;font-weight:600">{{a.q}}</span>
+<span style="font-size:12.5px;color:#4A4F58;font-style:italic">{{a.like}}</span>
+<span style="font-size:12.5px;color:#30343B">{{a.looks}}</span>
+<span class="mono" style="font-size:11.5px;color:#1F4FD1;border-top:1px solid #E4E1DA;padding-top:6px">Example: {{a.ex}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Hard rules that override the score</h2>
+<sc-for list="{{knScoreRules}}" as="r" hint-placeholder-count="5">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px"><strong style="font-size:13.5px">{{r.t}}</strong><span style="font-size:13px;color:#30343B">{{r.d}}</span></div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Worked example: Rohan Mehta</h2>
+<p style="margin:0;font-size:13px;color:#30343B">Steady salary and a healthy balance, but two warning signs.</p>
+<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px">
+<sc-for list="{{knScoreExample}}" as="e" hint-placeholder-count="9"><span style="font-weight:600;color:#4A4F58">{{e.k}}</span><span class="mono" style="color:#16181D;font-size:12.5px">{{e.v}}</span></sc-for>
+</div>
+<p style="margin:0;font-size:12.5px;color:#4A4F58">The six rounded points add up to 778; the app adds the exact values (776.97) and rounds once, so the total is 777.</p>
+</div>
 </section>
 </sc-if>
 

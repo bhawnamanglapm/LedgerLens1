@@ -224,7 +224,12 @@ function runCli(file, env, extra) {
   const badHoles = (markupTxt.match(/="\{[^{][^"]*"/g) || []).concat(markupTxt.match(/<sc-(?:if|for)\b(?![^>]*(?:value|list)="\{\{)[^>]*>/g) || []);
   ok(!badHoles.length, 'page template: every value / list binding uses {{double braces}}', badHoles.slice(0, 3).join(' '));
   const kn = new C({}).knowledge({ knowTab: 'cibil' });
-  ok(kn.isKnowCibil && kn.knTopics.length === 3 && kn.knCibilRows.length >= 8 && kn.knCibilCases.length === 3 && kn.knFaq.reduce((n, g) => n + g.items.length, 0) >= 20, 'Knowledge sharing: 3 topics (Why an LLM?, CIBIL vs this analyzer, FAQ), CIBIL comparison, 3 worked cases, ' + kn.knFaq.reduce((n, g) => n + g.items.length, 0) + ' FAQ answers');
+  ok(kn.isKnowCibil && kn.knTopics.length === 4 && kn.knCibilRows.length >= 8 && kn.knCibilCases.length === 3 && kn.knScoreAreas.length === 6 && kn.knScoreRules.length === 5 && kn.knFaq.reduce((n, g) => n + g.items.length, 0) >= 20, 'Knowledge sharing: 4 topics (Why an LLM?, CIBIL vs this analyzer, How the score is calculated, FAQ), CIBIL comparison, 3 worked cases, 6 score areas, 5 hard rules, ' + kn.knFaq.reduce((n, g) => n + g.items.length, 0) + ' FAQ answers');
+  { // the ⓘ explanations on the Risk summary must match the real calculation
+    const ce2 = new C({}); await ce2.runPipeline(ce2.genSample('flags'), 'explain test'); const R7 = ce2.score(ce2.buildTxns()); const X7 = ce2.riskExplain(R7);
+    const sumPts = R7.comps.reduce((a, c) => a + c.s * c.w * 10, 0);
+    ok(Math.round(sumPts) === R7.total && X7.score.mine.some((m) => m.t === 'Total: ' + R7.total + ' / 1000 → ' + R7.band + ' (exact values are added before rounding)') && X7.comp.debt.mine[0].t.indexOf('FOIR ' + Math.round(R7.foir * 1000) / 10 + '%') >= 0 && X7.decision.mine[0].t === 'Band Good → starting point APPROVE' && X7.decision.mine[X7.decision.mine.length - 1].t === 'Final recommendation: REFER' && ['income', 'debt', 'liq', 'bank', 'fraud', 'exp'].every((k) => X7.comp[k].what && X7.comp[k].how.length && X7.comp[k].mine.length), 'Risk summary ⓘ: every card, the score and the decision explain themselves with the statement\'s own numbers (777 = sum of the six parts; Good → Approve, overridden to Refer)');
+  }
 
   console.log('\n12 · API v1: storage, background queue, review decisions');
   await require('./api')(ok);

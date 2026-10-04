@@ -15,6 +15,6 @@ Record the screen at 1440 px wide. Run the **local app** with your API key (`cd 
 | 9 | 3:25–3:45 | Upload `03a_scanned_page1.png`.. | "Scans and images go through OCR first, which runs in the browser, and the confidence of the reading is recorded." |
 | 10 | 3:45–4:00 | Click **Show samples**, then **Jumbled pages**. | "If pages are out of order, the pipeline stops with a clear error instead of producing a wrong score. The Activity log keeps every run. That's LedgerLens." |
 
-**Optional clips.** Ingest → Batch log → Show details: the *Extraction* column shows each batch's model rows and agreement with the rule parser. Terminal: `npm test` (108 checks, including a deliberately wrong model being rejected).
+**Optional clips.** Ingest → Batch log → Show details: the *Extraction* column shows each batch's model rows and agreement with the rule parser. Terminal: `npm test` (109 checks, including a deliberately wrong model being rejected).
 
 **CLI clip (20 s).** Run `node cli.js ../test-statements/02_multi_month_multi_account.pdf --llm -o out.json`. It produces the same numbers as the web app.
