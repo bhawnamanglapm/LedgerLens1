@@ -4,6 +4,8 @@
 
 **Live demo:** https://claude.ai/artifact/JkAAGFzSJga3bhCpKa9Vk4 (runs in the browser, rules only). Ingest → **Show samples** has one-click practice samples and **13 example statements**, one per scenario below, each with its expected result.
 
+**Product blueprint and MVP PRD:** [docs/LedgerLens_Product_Blueprint.pdf](docs/LedgerLens_Product_Blueprint.pdf). It covers market research on Indian and global statement-analysis players, personas, end-to-end flow, architecture, validation and risk engines, API design, user journeys, MoSCoW roadmap, MVP PRD, KPIs, UX structure, gap analysis and five differentiating bets.
+
 LedgerLens ingests raw bank statements (digital PDF, scanned PDF, images, Excel, CSV, text), extracts every transaction, classifies it, validates the data and produces a structured credit-risk summary: a 0–1000 score, a rating band and a decision recommendation.
 
 It comes in three forms that share **one engine** (`app/engine.js`):
