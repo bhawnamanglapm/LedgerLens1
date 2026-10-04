@@ -1962,8 +1962,10 @@ class Component extends DCLogic {
       num: n, label: l, badge: k === 'review' && T.length ? String(flagged.length) : (k === 'log' && s.busy ? 'LIVE' : ''), active: s.tab === k, current: s.tab === k ? 'page' : 'false',
       style: s.tab === k ? 'background:#F3F2EE;color:#16181D' : 'background:transparent;color:#E6E8EC',
       numStyle: s.tab === k ? 'color:#1F4FD1' : 'color:#8F949D',
-      go: () => { this.setState({ tab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} }
+      go: () => { this.setState({ tab: k, navOpen: false }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} }
     }));
+    const curTab = tabs.find((t) => t.active) || tabs[0];
+    const nav = { navOpen: !!s.navOpen, navClosed: !s.navOpen, navOpenAttr: s.navOpen ? 'true' : 'false', navBtnLabel: s.navOpen ? 'Close menu' : 'Open menu', navCur: curTab.label, navCurNum: curTab.num, navBadge: tabs.map((t) => t.badge).filter(Boolean).join(' · '), toggleNav: () => this.setState({ navOpen: !this.state.navOpen }), closeNav: () => this.setState({ navOpen: false }) };
     const stCol = { done: '#1E7B45', error: '#B42318', blocked: '#8A8F98', running: '#B88A00', pending: '#8A8F98', warn: '#B54708' };
     const ov = this.stageOverlay(T, flagged);
     const stages = ov.stages.map((x, i) => ({ ...x, ...this.infoFor('I' + ['conv', 'val', 'ext', 'enr', 'cls', 'score'][i], x.k), info: this.stepInfo()[['conv', 'val', 'ext', 'enr', 'cls', 'score'][i]], num: String(i + 1).padStart(2, '0'), dot: 'width:10px;height:10px;border-radius:50%;flex-shrink:0;background:' + (stCol[x.st] || '#8A8F98'), stLabel: ({ done: '✓ DONE', running: 'IN PROGRESS', error: 'FAILED', blocked: 'BLOCKED', pending: 'NOT STARTED', waiting: '● WAITING FOR YOU', warn: '⚠ NEEDS ATTENTION' })[x.st] || x.st.toUpperCase(), stStyle: 'font-size:11px;letter-spacing:.06em;font-weight:600;color:' + (stCol[x.st] || '#8A8F98'), liStyle: x.st === 'done' ? 'background:#F0F8F2' : x.st === 'warn' ? 'background:#FFF6EC' : (x.st === 'running' ? 'background:#FFF8E6' : (x.st === 'error' ? 'background:#FDF0EE' : 'background:transparent')) }));
@@ -2093,7 +2095,7 @@ class Component extends DCLogic {
     const taxRows = tax.map((x) => ({ ...x, kwS: x.kw.join('; ') || '— (structural rule)', srcStyle: x.src === 'DEFAULT' ? 'color:#5A5F69' : 'color:#1F4FD1;font-weight:600' }));
 
     return {
-      tabs, isLog: s.tab === 'log', isIngest: s.tab === 'ingest', isTx: s.tab === 'txns', isReview: s.tab === 'review', isRisk: s.tab === 'risk', isTax: s.tab === 'tax',
+      tabs, ...nav, isLog: s.tab === 'log', isIngest: s.tab === 'ingest', isTx: s.tab === 'txns', isReview: s.tab === 'review', isRisk: s.tab === 'risk', isTax: s.tab === 'tax',
       busy: s.busy, hasError: !!s.error, error: s.error, hasStages: !!s.stages, stages, source: s.source || 'No file yet', hasData: T.length > 0, noData: T.length === 0,
       batches: s.batches.map((b) => ({ ...b, llmS: b.llmS || '—', llmStyle: b.llmOk === true ? 'color:#14532D' : (b.llmOk === false ? 'color:#7A3A06;font-weight:600' : 'color:#4A4F58') })), hasBatches: s.batches.length > 0, accts, hasPages: s.pages.length > 0, pageBtns, pvText: pv ? pv.text : '', pvN: pv ? pv.index : '',
       onFile: (e) => this.handleFiles(e.target.files),

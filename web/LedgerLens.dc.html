@@ -30,16 +30,18 @@ main{min-width:0;box-sizing:border-box}
 main section,main section>*,main section>*>*{min-width:0}
 pre{max-width:100%;box-sizing:border-box}
 .tbl{min-width:0}
+.navToggle,.navBackdrop{display:none}
 @media (max-width:900px){
 main{padding:14px!important;gap:14px!important}
 .navList{max-width:100%;box-sizing:border-box}
-.side{position:sticky!important;top:0;z-index:20;flex-basis:100%!important}
-.sideIn{position:static!important;padding:10px 12px!important;gap:8px!important}
+.side{position:sticky!important;top:0;z-index:30;flex-basis:100%!important}
+.sideIn{position:static!important;padding:8px 12px!important;gap:0!important}
 .sideSub,.sideExtra{display:none!important}
-.navList{flex-direction:row!important;overflow-x:auto;gap:6px!important;padding-bottom:2px!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-.navItem{flex:0 0 auto}
-.navList{-webkit-mask-image:linear-gradient(90deg,#000 82%,transparent);mask-image:linear-gradient(90deg,#000 82%,transparent);padding-right:28px!important}
-.navItem button{white-space:nowrap;padding:10px 12px!important}
+.sideHead{flex-direction:row!important;align-items:center;justify-content:space-between;gap:10px!important;padding:0!important}
+.navToggle{display:inline-flex!important}
+.side nav{position:absolute;left:0;right:0;top:100%;background:#16181D;padding:6px 12px 14px;box-shadow:0 12px 24px rgba(0,0,0,.25);max-height:calc(100vh - 64px);overflow-y:auto;box-sizing:border-box}
+.side nav[data-open="false"]{display:none}
+.navBackdrop{display:block!important}
 }
 @media (max-width:640px){.stepText{flex:1 1 calc(100% - 60px)!important}.stepSt{margin-left:56px;flex:1 1 auto}}
 @media (max-width:640px){
@@ -57,11 +59,19 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 
 <aside class="side" style="flex:1 0 248px;background:#16181D;color:#FFFFFF">
 <div class="sideIn" style="position:sticky;top:0;padding:24px 16px;display:flex;flex-direction:column;gap:22px">
-<div style="display:flex;flex-direction:column;gap:4px;padding:0 8px">
+<div class="sideHead" style="display:flex;flex-direction:column;gap:4px;padding:0 8px">
 <div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:20px;letter-spacing:-.01em">LedgerLens</div>
 <div class="sideSub" style="font-size:12px;color:#B9BDC6">Statement → transactions → credit decision</div>
+<button type="button" class="navToggle" onClick="{{toggleNav}}" aria-expanded="{{navOpenAttr}}" aria-controls="mainNav" aria-label="{{navBtnLabel}}" style="align-items:center;gap:10px;min-height:44px;padding:6px 12px;background:#2A2D34;color:#FFFFFF;border:1px solid #474B54;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;max-width:70%;min-width:0">
+<span class="mono" style="font-size:11px;color:#8F949D">{{navCurNum}}</span>
+<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{navCur}}</span>
+<span class="mono" style="font-size:11px;font-weight:600;color:#F0B27A">{{navBadge}}</span>
+<sc-if value="{{navOpen}}" hint-placeholder-val="{{false}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></sc-if>
+<sc-if value="{{navClosed}}" hint-placeholder-val="{{true}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" style="flex-shrink:0"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg></sc-if>
+</button>
 </div>
-<nav aria-label="Workflow">
+<sc-if value="{{navOpen}}" hint-placeholder-val="{{false}}"><div class="navBackdrop" onClick="{{closeNav}}" aria-hidden="true" style="position:fixed;left:0;right:0;bottom:0;top:60px;background:rgba(22,24,29,.45);z-index:-1"></div></sc-if>
+<nav id="mainNav" aria-label="Workflow" data-open="{{navOpenAttr}}">
 <ul class="navList" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px">
 <sc-for list="{{tabs}}" as="t" hint-placeholder-count="6">
 <li class="navItem" style="display:flex">
@@ -3145,8 +3155,10 @@ class Component extends DCLogic {
       num: n, label: l, badge: k === 'review' && T.length ? String(flagged.length) : (k === 'log' && s.busy ? 'LIVE' : ''), active: s.tab === k, current: s.tab === k ? 'page' : 'false',
       style: s.tab === k ? 'background:#F3F2EE;color:#16181D' : 'background:transparent;color:#E6E8EC',
       numStyle: s.tab === k ? 'color:#1F4FD1' : 'color:#8F949D',
-      go: () => { this.setState({ tab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} }
+      go: () => { this.setState({ tab: k, navOpen: false }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} }
     }));
+    const curTab = tabs.find((t) => t.active) || tabs[0];
+    const nav = { navOpen: !!s.navOpen, navClosed: !s.navOpen, navOpenAttr: s.navOpen ? 'true' : 'false', navBtnLabel: s.navOpen ? 'Close menu' : 'Open menu', navCur: curTab.label, navCurNum: curTab.num, navBadge: tabs.map((t) => t.badge).filter(Boolean).join(' · '), toggleNav: () => this.setState({ navOpen: !this.state.navOpen }), closeNav: () => this.setState({ navOpen: false }) };
     const stCol = { done: '#1E7B45', error: '#B42318', blocked: '#8A8F98', running: '#B88A00', pending: '#8A8F98', warn: '#B54708' };
     const ov = this.stageOverlay(T, flagged);
     const stages = ov.stages.map((x, i) => ({ ...x, ...this.infoFor('I' + ['conv', 'val', 'ext', 'enr', 'cls', 'score'][i], x.k), info: this.stepInfo()[['conv', 'val', 'ext', 'enr', 'cls', 'score'][i]], num: String(i + 1).padStart(2, '0'), dot: 'width:10px;height:10px;border-radius:50%;flex-shrink:0;background:' + (stCol[x.st] || '#8A8F98'), stLabel: ({ done: '✓ DONE', running: 'IN PROGRESS', error: 'FAILED', blocked: 'BLOCKED', pending: 'NOT STARTED', waiting: '● WAITING FOR YOU', warn: '⚠ NEEDS ATTENTION' })[x.st] || x.st.toUpperCase(), stStyle: 'font-size:11px;letter-spacing:.06em;font-weight:600;color:' + (stCol[x.st] || '#8A8F98'), liStyle: x.st === 'done' ? 'background:#F0F8F2' : x.st === 'warn' ? 'background:#FFF6EC' : (x.st === 'running' ? 'background:#FFF8E6' : (x.st === 'error' ? 'background:#FDF0EE' : 'background:transparent')) }));
@@ -3276,7 +3288,7 @@ class Component extends DCLogic {
     const taxRows = tax.map((x) => ({ ...x, kwS: x.kw.join('; ') || '— (structural rule)', srcStyle: x.src === 'DEFAULT' ? 'color:#5A5F69' : 'color:#1F4FD1;font-weight:600' }));
 
     return {
-      tabs, isLog: s.tab === 'log', isIngest: s.tab === 'ingest', isTx: s.tab === 'txns', isReview: s.tab === 'review', isRisk: s.tab === 'risk', isTax: s.tab === 'tax',
+      tabs, ...nav, isLog: s.tab === 'log', isIngest: s.tab === 'ingest', isTx: s.tab === 'txns', isReview: s.tab === 'review', isRisk: s.tab === 'risk', isTax: s.tab === 'tax',
       busy: s.busy, hasError: !!s.error, error: s.error, hasStages: !!s.stages, stages, source: s.source || 'No file yet', hasData: T.length > 0, noData: T.length === 0,
       batches: s.batches.map((b) => ({ ...b, llmS: b.llmS || '—', llmStyle: b.llmOk === true ? 'color:#14532D' : (b.llmOk === false ? 'color:#7A3A06;font-weight:600' : 'color:#4A4F58') })), hasBatches: s.batches.length > 0, accts, hasPages: s.pages.length > 0, pageBtns, pvText: pv ? pv.text : '', pvN: pv ? pv.index : '',
       onFile: (e) => this.handleFiles(e.target.files),
