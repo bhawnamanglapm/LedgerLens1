@@ -42,6 +42,14 @@ main{padding:14px!important;gap:14px!important}
 .navItem button{white-space:nowrap;padding:10px 12px!important}
 }
 @media (max-width:640px){.stepText{flex:1 1 calc(100% - 60px)!important}.stepSt{margin-left:56px;flex:1 1 auto}}
+@media (max-width:640px){
+.stk thead{display:none}
+.stk,.stk tbody,.stk tr{display:block;width:100%}
+.stk tr{padding:10px 14px;border-bottom:1px solid #E4E1DA;box-sizing:border-box}
+.stk td{display:inline-block;border:0!important;padding:0 12px 2px 0!important;min-width:0!important;max-width:100%!important;text-align:left!important;vertical-align:baseline;box-sizing:border-box}
+.stk td.stkFull{display:block;width:100%;white-space:normal!important;padding:4px 0 0!important}
+.stk td[data-l]::before{content:attr(data-l) " ";color:#4A4F58;font-size:10.5px;font-weight:600;letter-spacing:.05em;font-family:'IBM Plex Sans',system-ui,sans-serif}
+}
 button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within{outline:2px solid #1F4FD1;outline-offset:2px}
 </style>
 </helmet>
@@ -765,11 +773,11 @@ Page 1 of 12</pre></div>
 <div style="padding:16px 18px;border-bottom:1px solid #E4E1DA;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2 style="margin:0;font-size:16px;font-weight:600">Run history</h2><span style="font-size:12px;color:#4A4F58">Each new statement replaces the working data; earlier runs are archived here with their results.</span></div>
 <sc-if value="{{hasHist}}" hint-placeholder-val="{{true}}">
 <div style="overflow:auto;max-height:320px">
-<table class="tbl">
+<table class="tbl stk">
 <thead><tr><th>Run</th><th>Completed</th><th>File</th><th class="num">Pages</th><th class="num">Txns</th><th class="num">Accts</th><th>Score</th><th>Decision</th><th class="num">To review</th><th>Status</th></tr></thead>
 <tbody>
 <sc-for list="{{hist}}" as="h" hint-placeholder-count="3">
-<tr><td class="mono" style="font-weight:600">#{{h.run}}</td><td class="mono" style="white-space:nowrap;font-size:11.5px">{{h.when}}</td><td style="font-size:12px;max-width:260px;word-break:break-word">{{h.source}}</td><td class="num">{{h.nPages}}</td><td class="num">{{h.nTx}}</td><td class="num">{{h.nAcc}}</td><td class="mono" style="white-space:nowrap">{{h.score}}</td><td style="font-weight:600;font-size:12px;white-space:nowrap">{{h.decision}}</td><td class="num">{{h.flagged}}</td><td style="{{h.stStyle}}; font-size:12px; white-space:nowrap">{{h.status}}</td></tr>
+<tr><td class="mono" style="font-weight:600">#{{h.run}}</td><td class="mono" style="white-space:nowrap;font-size:11.5px">{{h.when}}</td><td class="stkFull" style="font-size:12px;max-width:260px;word-break:break-word">{{h.source}}</td><td class="num" data-l="PAGES">{{h.nPages}}</td><td class="num" data-l="TXNS">{{h.nTx}}</td><td class="num" data-l="ACCTS">{{h.nAcc}}</td><td class="mono" style="white-space:nowrap">{{h.score}}</td><td style="font-weight:600;font-size:12px;white-space:nowrap">{{h.decision}}</td><td class="num" data-l="TO REVIEW">{{h.flagged}}</td><td style="{{h.stStyle}}; font-size:12px; white-space:nowrap">{{h.status}}</td></tr>
 </sc-for>
 </tbody>
 </table>
@@ -829,11 +837,11 @@ Page 1 of 12</pre></div>
 <sc-if value="{{noSEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">Nothing saved on this server yet for this filter.</p></sc-if>
 <sc-if value="{{hasSEntries}}" hint-placeholder-val="{{false}}">
 <div style="overflow:auto;max-height:640px">
-<table class="tbl">
+<table class="tbl stk">
 <thead><tr><th>Who · when</th><th>Level · step</th><th>Event</th></tr></thead>
 <tbody>
 <sc-for list="{{sEntries}}" as="e" hint-placeholder-count="10">
-<tr><td style="min-width:150px"><div style="font-weight:600;font-size:12.5px">{{e.who}}</div><div class="mono" style="font-size:11px;color:#4A4F58;white-space:nowrap">{{e.runS}} · {{e.dayS}} {{e.tsShort}}</div></td><td style="white-space:nowrap"><div style="{{e.lvStyle}}">{{e.level}}</div><div style="font-size:12px;font-weight:500">{{e.step}}</div></td><td style="font-size:12.5px;word-break:break-word;min-width:220px">{{e.msg}}</td></tr>
+<tr><td style="min-width:150px"><div style="font-weight:600;font-size:12.5px">{{e.who}}</div><div class="mono" style="font-size:11px;color:#4A4F58;white-space:nowrap">{{e.runS}} · {{e.dayS}} {{e.tsShort}}</div></td><td style="white-space:nowrap"><div style="{{e.lvStyle}}">{{e.level}}</div><div style="font-size:12px;font-weight:500">{{e.step}}</div></td><td class="stkFull" style="font-size:12.5px;word-break:break-word;min-width:220px">{{e.msg}}</td></tr>
 </sc-for>
 </tbody>
 </table>
@@ -842,11 +850,11 @@ Page 1 of 12</pre></div>
 <sc-if value="{{noEntries}}" hint-placeholder-val="{{false}}"><p style="margin:0;padding:18px;color:#4A4F58">No events yet. Every pipeline step, batch, warning and reviewer action is recorded here with a timestamp.</p></sc-if>
 <sc-if value="{{hasEntries}}" hint-placeholder-val="{{true}}">
 <div style="overflow:auto;max-height:640px">
-<table class="tbl">
+<table class="tbl stk">
 <thead><tr><th>Run</th><th>Date · time</th><th>Level</th><th>Step</th><th>Event</th></tr></thead>
 <tbody>
 <sc-for list="{{entries}}" as="e" hint-placeholder-count="10">
-<tr><td class="mono" style="white-space:nowrap;font-weight:600;font-size:11.5px">{{e.runS}}</td><td class="mono" style="white-space:nowrap;color:#4A4F58;font-size:11.5px">{{e.dayS}} {{e.ts}}</td><td style="{{e.lvStyle}}">{{e.level}}</td><td style="white-space:nowrap;font-weight:500;font-size:12px">{{e.step}}</td><td style="font-size:12.5px;word-break:break-word">{{e.msg}}</td></tr>
+<tr><td class="mono" style="white-space:nowrap;font-weight:600;font-size:11.5px">{{e.runS}}</td><td class="mono" style="white-space:nowrap;color:#4A4F58;font-size:11.5px">{{e.dayS}} {{e.ts}}</td><td style="{{e.lvStyle}}">{{e.level}}</td><td style="white-space:nowrap;font-weight:500;font-size:12px">{{e.step}}</td><td class="stkFull" style="font-size:12.5px;word-break:break-word">{{e.msg}}</td></tr>
 </sc-for>
 </tbody>
 </table>
