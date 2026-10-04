@@ -8,6 +8,7 @@
  *   GET  /api/health   { ok, llm, provider, model }
  *   POST /api/llm      { task, system, user, tool, max_tokens } → { ok, input, usage, model, ms }
  *   GET  /             the web app (same markup + engine as the claude.ai page)
+ *   /api/v1/...        REST API: users, statements, background jobs, results, review decisions (backend/api.js)
  *
  * The API key never leaves this process. Only the two extraction/classification tools are allowed,
  * request bodies are capped at 2 MB, and the server listens on 127.0.0.1 unless HOST is set.
@@ -16,6 +17,9 @@
  *   APP_PASSWORD      every page and API call needs this password (browser login prompt, any user name)
  *   DEMO_MODE=1       shows "demo — synthetic statements only" in the app
  *   LLM_DAILY_LIMIT   max model calls per day for the whole server (e.g. 300); LLM_IP_LIMIT per visitor per hour (default 120)
+ *
+ * Storage and background jobs (API v1): DATA_DIR (default app/data), WORKERS (default 2), JOB_TIMEOUT_MS,
+ * SIGNUP (open | invite | off), INVITE_CODE, MAX_QUEUED_PER_USER — see backend/*.js and the README.
  */
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const llm = require('./llm');
@@ -24,6 +28,14 @@ const PORT = Number(process.env.PORT || 8787); const HOST = process.env.HOST || 
 const PASSWORD = process.env.APP_PASSWORD || ''; const DEMO = process.env.DEMO_MODE === '1';
 const DAILY = Number(process.env.LLM_DAILY_LIMIT || 0); const PER_IP = Number(process.env.LLM_IP_LIMIT || 120);
 const usage = { day: '', n: 0, ip: {} };
+
+// storage + background queue + REST API (v1); the web app and /api/llm keep working if the database can't load
+let api = null, queue = null, store = null;
+try {
+  store = require('./backend/db').open(process.env.DATA_DIR);
+  queue = require('./backend/queue').createQueue(store).start();
+  api = require('./backend/api').createApi(store, queue);
+} catch (e) { console.log('API v1 disabled: ' + e.message); }
 function allowCall(ip) {
   const day = new Date().toISOString().slice(0, 10); if (usage.day !== day) { usage.day = day; usage.n = 0; }
   const hr = Math.floor(Date.now() / 3600000); const u = usage.ip[ip] && usage.ip[ip].hr === hr ? usage.ip[ip] : (usage.ip[ip] = { hr, n: 0 });
@@ -65,8 +77,12 @@ function file(res, p, type) { fs.readFile(p, (e, buf) => (e ? send(res, 404, 'no
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
   if (url === '/healthz') return send(res, 200, 'ok', 'text/plain'); // for the hosting platform's health check
+  if (url.startsWith('/api/v1/')) { // token auth of its own (Authorization: Bearer)
+    if (!api) return send(res, 503, JSON.stringify({ ok: false, error: 'API v1 is not available on this server (database did not load)' }));
+    return api.handle(req, res, url, new URL(req.url, 'http://x').searchParams);
+  }
   if (!authorised(req)) { res.writeHead(401, { 'www-authenticate': 'Basic realm="LedgerLens demo", charset="UTF-8"', 'content-type': 'text/plain' }); return res.end('Password required'); }
-  if (req.method === 'GET' && url === '/api/health') return send(res, 200, JSON.stringify({ ok: true, demo: DEMO, ...llm.info() }));
+  if (req.method === 'GET' && url === '/api/health') return send(res, 200, JSON.stringify({ ok: true, demo: DEMO, ...llm.info(), api_v1: !!api, workers: queue ? queue.workers : 0 }));
   if (req.method === 'POST' && url === '/api/llm') {
     let size = 0; const chunks = [];
     req.on('data', (c) => { size += c.length; if (size > 2e6) { send(res, 413, JSON.stringify({ ok: false, error: 'request too large' })); req.destroy(); } else chunks.push(c); });
@@ -104,5 +120,8 @@ server.listen(PORT, HOST, () => {
   console.log('LedgerLens running at http://' + (HOST === '0.0.0.0' ? 'localhost' : HOST) + ':' + PORT);
   console.log(i.llm ? 'LLM: ' + i.provider + ' · ' + i.model : 'LLM: off — set ANTHROPIC_API_KEY to enable (the app falls back to rules)');
   console.log('Password: ' + (PASSWORD ? 'on' : 'off') + ' · demo notice: ' + (DEMO ? 'on' : 'off') + ' · model-call limits: ' + (DAILY ? DAILY + '/day, ' : 'no daily cap, ') + PER_IP + '/visitor/hour');
+  if (api) console.log('API v1: ' + store.dir + ' · ' + queue.workers + ' background worker(s) · sign-up ' + (process.env.SIGNUP || (PASSWORD ? 'invite' : 'open')));
   if (HOST !== '127.0.0.1' && HOST !== 'localhost' && !PASSWORD) console.log('WARNING: listening on ' + HOST + ' without APP_PASSWORD — anyone who can reach this server can use your API key.');
 });
+// stop cleanly: running jobs go back to the queue and are picked up again on the next start
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { if (queue) await queue.stop(); if (store) store.close(); process.exit(0); });

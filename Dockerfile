@@ -6,7 +6,9 @@ COPY app/package.json app/package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY app/ ./
 COPY test-statements/ ../test-statements/
-ENV HOST=0.0.0.0 PORT=8787 NODE_ENV=production
+# API v1 storage (SQLite database + uploaded statements); mount a persistent volume here in production
+RUN mkdir -p /srv/app/data && chown node:node /srv/app/data
+ENV HOST=0.0.0.0 PORT=8787 NODE_ENV=production DATA_DIR=/srv/app/data
 EXPOSE 8787
 USER node
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

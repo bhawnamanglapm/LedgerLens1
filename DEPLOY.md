@@ -12,7 +12,7 @@ Three ways to use this package, from simplest to most work. Do them in this orde
 ./setup.sh                      # macOS / Linux
 # Windows PowerShell:  powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
-The setup script checks Node, installs the dependencies, creates `app/.env` and runs the 93 tests.
+The setup script checks Node, installs the dependencies, creates `app/.env` and runs the 105 tests.
 
 Then:
 1. Open `app/.env` and paste your Claude API key: `ANTHROPIC_API_KEY=sk-ant-...`
@@ -28,7 +28,7 @@ Then:
 
 ## 2 · GitHub repository with automatic tests
 
-The package is already a git repository with one commit, and it includes `.github/workflows/test.yml`. On every push, GitHub runs `npm test` (93 checks) using the offline test double. **No API key, no cost.**
+The package is already a git repository with one commit, and it includes `.github/workflows/test.yml`. On every push, GitHub runs `npm test` (105 checks) using the offline test double. **No API key, no cost.**
 
 1. On github.com → **New repository** → name it `ledgerlens` → keep it **Private** if you prefer (Actions still runs) → **don't** add a README, .gitignore or licence (the package has them).
 2. In the unzipped folder:
@@ -51,7 +51,8 @@ A public URL means anyone with the link could use your API credits, and statemen
 
 | Protection | How |
 |---|---|
-| Password on every page and API call | `APP_PASSWORD` — the browser asks for it (any user name) |
+| Password on every page and on `/api/llm` | `APP_PASSWORD` — the browser asks for it (any user name) |
+| API v1 (`/api/v1`, README §3b) | Its own per-user tokens. With `APP_PASSWORD` set, creating an API user needs it as the invite code (`{"name":"…","invite":"<APP_PASSWORD>"}`); `SIGNUP=off` disables new users |
 | Banner: "Demo environment — synthetic statements only" | `DEMO_MODE=1` |
 | Cap on model calls | `LLM_DAILY_LIMIT` (whole server, per day) and `LLM_IP_LIMIT` (per visitor, per hour). Over the cap, the app falls back to rules instead of failing |
 | Spending cap at the source | Claude Console → **Settings → Billing → Spend limits → Set limit**: set a low monthly limit. Better: create a separate workspace for the demo (workspace limits are set under **Settings → Rate limits**; the default workspace can't have its own limit) and a separate key in it, with a short expiry |
@@ -69,9 +70,9 @@ Free instances sleep when idle, so the first load can take about a minute.
 ### Option B — any container host (Railway, Fly.io, Google Cloud Run, Azure Container Apps)
 ```bash
 docker build -t ledgerlens .
-docker run -p 8787:8787 -e ANTHROPIC_API_KEY=sk-ant-... -e APP_PASSWORD=choose-one -e DEMO_MODE=1 -e LLM_DAILY_LIMIT=300 ledgerlens
+docker run -p 8787:8787 -v ledgerlens-data:/srv/app/data -e ANTHROPIC_API_KEY=sk-ant-... -e APP_PASSWORD=choose-one -e DEMO_MODE=1 -e LLM_DAILY_LIMIT=300 ledgerlens
 ```
-Set the same variables as secrets in the host's dashboard. Health check path: `/healthz`.
+Set the same variables as secrets in the host's dashboard. Health check path: `/healthz`. The `-v ledgerlens-data:/srv/app/data` volume keeps the API's database and uploaded statements across restarts; `WORKERS` sets how many statements are processed at once (default 2, use 1 on small instances).
 
 On **Google Cloud, AWS or Azure** you can avoid storing a static API key by using the Claude Console's *identity federation* option. That isn't needed for this demo.
 

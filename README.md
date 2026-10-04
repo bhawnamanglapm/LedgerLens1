@@ -47,7 +47,7 @@ Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped 
 
 ### Tests
 ```bash
-cd app && npm test        # 93 checks, offline, ~1 min — no API key needed
+cd app && npm test        # 105 checks, offline, ~1 min — no API key needed
 ```
 GitHub Actions runs the same tests on every push (`.github/workflows/test.yml`).
 
@@ -86,7 +86,7 @@ flowchart LR
 | **Smart review** | Rows under the threshold (default 70%) are flagged, but only **high-impact** ones are queued: ≥ ₹10k (or 5% of income), credits ≥ ₹5k (possible income), monthly recurring (possible EMI/rent), loan-related, possible bounce. Low-impact one-offs are auto-accepted and marked, except rows with no counterparty, which are always queued. Similar rows are grouped; one decision applies to all; decisions can be saved as rules for future statements. |
 | **Score** | Six weighted components → composite 0–1000, band and decision with reasons (see §4). |
 
-**Key files:** `app/engine.js` (engine — identical to the web logic, incl. the LLM layer), `app/llm.js` (model transport), `app/server.js` (backend), `app/public/` (local UI runtime + markup), `app/cli.js` (CLI), `app/test/run.js` (tests), `web/LedgerLens.dc.html` (hosted UI), `tools/` (test-statement generators).
+**Key files:** `app/engine.js` (engine — identical to the web logic, incl. the LLM layer), `app/llm.js` (model transport), `app/server.js` (backend), `app/public/` (local UI runtime + markup), `app/cli.js` (CLI), `app/pipeline.js` (headless pipeline shared by the CLI and the API workers), `app/backend/` (API v1: `db.js`, `queue.js`, `worker.js`, `api.js`), `app/test/run.js` (tests), `web/LedgerLens.dc.html` (hosted UI), `tools/` (test-statement generators).
 
 ---
 
@@ -116,6 +116,59 @@ flowchart LR
 - **Visible in the app:** Ingest → AI step switch; Batch log → *Extraction* column (rows, balance check, agreement with the rule parser, or "Fallback to rules"); Transactions → method LLM with the model's reason; Activity log → every call; JSON → `run.ai` (calls, retries, fallbacks, tokens, agreement) and `extracted_by` per row.
 - **Scale:** a 100-page statement ≈ 34 extraction calls + 1–2 classification calls.
 - **Privacy:** in LLM mode page text leaves the browser for your backend and the model provider. Masking names/account numbers before the call is a next step.
+
+## 3b. Backend API (v1): storage, background queue, review decisions
+
+The local server (`npm start`) also offers a REST API so a lender's systems can **store statements, process them in the background, keep every result and record every review decision**, for many users at once. It runs the same engine as the app and the CLI (`app/pipeline.js`), so the JSON is identical.
+
+```mermaid
+flowchart LR
+  C[Client / lender system] -- "Bearer token" --> A[REST API<br/>/api/v1 · server.js]
+  A -- "files" --> F[(uploads/ on disk)]
+  A -- "users · statements · jobs ·<br/>results · decisions" --> D[(SQLite<br/>ledgerlens.db)]
+  Q[Queue · backend/queue.js<br/>fair across users · WORKERS at a time] -- "next job" --> D
+  Q -- "one child process per job" --> W[Worker · backend/worker.js<br/>pipeline.js: convert · OCR · extract · classify · score]
+  W -- "progress · result · snapshot" --> Q
+  W -. "LLM mode" .-> L[Claude]
+```
+
+| Part | How it works |
+|---|---|
+| **Database** | SQLite (`better-sqlite3`, WAL mode) in `DATA_DIR` (default `app/data/`): `users` (only a SHA-256 hash of each token), `statements` (file on disk + name, type, size, SHA-256), `jobs` (status, stage, progress, attempts, timings, summary), `results` (versioned JSON: v1 from the pipeline, v2… after each review decision), `snapshots` (what is needed to re-score without re-reading files), `review_decisions` (who, what, old → new, note, when). |
+| **Queue** | Jobs are rows in the database, so nothing is lost on a restart; interrupted jobs go back to the queue. `WORKERS` jobs run at once (default 2), **each in its own child process**, so a crash, a stuck OCR page or a 100-page statement never blocks the API. Scheduling is **fair**: the next job comes from the user with the fewest jobs running. Crashed workers are retried (`JOB_ATTEMPTS`, default 2); runaway jobs stop after `JOB_TIMEOUT_MS` (15 min). |
+| **Job statuses** | `queued` → `running` → `done` · `stopped` (validation, e.g. jumbled pages) · `needs_password` · `failed`. While running, `stage` and `progress` show what the worker is doing (e.g. "OCR page 3 → confidence 91%"). |
+| **Review decisions** | `POST /jobs/:id/review` changes a category and/or counterparty, re-scores from the snapshot in milliseconds (no re-reading, no OCR, no model calls) and saves a new result version. Every earlier version stays readable; every decision is in the audit trail. |
+| **Users and security** | Each user gets a token (shown once, stored hashed) and sees only their own statements and jobs (others get 404). Uploads: ≤ 25 MB, supported types only, the same file twice is stored once. PDF passwords are passed with the job and kept **in memory only**, never in the database. `MAX_QUEUED_PER_USER` (default 20) stops one user flooding the queue. Sign-up: `SIGNUP=open` (default locally), `invite` (needs `INVITE_CODE`, or `APP_PASSWORD` when set; the default when `APP_PASSWORD` is set) or `off`. |
+
+| Endpoint | What it does |
+|---|---|
+| `POST /api/v1/users` `{name}` | Create a user; returns the token once |
+| `POST /api/v1/statements?name=a.pdf` (file body) | Store a statement |
+| `POST /api/v1/jobs` `{statement_ids, llm?, review_mode?, password?, taxonomy_csv?}` | Queue an analysis of one or more statements (multi-account / multi-file) |
+| `POST /api/v1/analyze?name=a.pdf` (file body) | Upload and queue in one call (`X-Statement-Password` header for protected PDFs, `&llm=1` for Claude) |
+| `GET /api/v1/jobs` · `GET /api/v1/jobs/:id` | Your jobs; one job's status, stage, progress, queue position and score summary |
+| `POST /api/v1/jobs/:id/password` `{password}` | Re-queue a job waiting for its PDF password |
+| `GET /api/v1/jobs/:id/result[?version=n]` | The full JSON output (latest, or any earlier version) |
+| `GET /api/v1/jobs/:id/review` | Items waiting for review + the categories allowed for credits and debits |
+| `POST /api/v1/jobs/:id/review` `{txn_id, category?, counterparty?, note?}` | Record a decision, re-score, save a new result version |
+| `GET /api/v1/jobs/:id/decisions` | Audit trail of decisions |
+| `GET /api/v1/queue` | Queued / running / done counts and the number of workers |
+
+**Try it** (with `npm start` running):
+```bash
+B=http://localhost:8787
+TOKEN=$(curl -s -X POST $B/api/v1/users -H 'content-type: application/json' -d '{"name":"Analyst"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
+curl -s -X POST "$B/api/v1/analyze?name=02.pdf" -H "Authorization: Bearer $TOKEN" --data-binary @../test-statements/02_multi_month_multi_account.pdf
+curl -s $B/api/v1/jobs/1 -H "Authorization: Bearer $TOKEN"            # status: queued → running → done, score 777 · REFER
+curl -s $B/api/v1/jobs/1/review -H "Authorization: Bearer $TOKEN"     # 6 items to review
+curl -s -X POST $B/api/v1/jobs/1/review -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+     -d '{"txn_id":"t63","category":"P2P","note":"advance from a friend, repaid next day"}'   # → result v2, 5 items left
+curl -s $B/api/v1/jobs/1/result -H "Authorization: Bearer $TOKEN"     # full JSON (add ?version=1 for the original)
+```
+
+**Settings:** `DATA_DIR`, `WORKERS`, `JOB_TIMEOUT_MS`, `JOB_ATTEMPTS`, `MAX_QUEUED_PER_USER`, `SIGNUP`, `INVITE_CODE`, `API_LLM` (whether API jobs may use Claude: on by default locally, off when `APP_PASSWORD` is set, because these calls are not covered by the per-visitor model-call limits of `/api/llm`). In Docker the data lives in `/srv/app/data` (mount a persistent volume there).
+
+**Limits of this version (single server):** SQLite and the in-process scheduler suit one machine with a few workers. For many servers, swap in PostgreSQL for the tables, a shared queue (e.g. Redis / BullMQ or SQS) for the scheduler and object storage (e.g. S3) for the files; the API, statuses and data model stay the same. The web app still keeps its own runs in the browser; connecting its screens to the API (history, shared review) is the next step.
 
 ---
 
@@ -217,7 +270,7 @@ One synthetic 3-month statement per decision and error path, generated by `tools
 | `12_jumbled_pages_error.pdf` | 4 pages, pages 2 and 3 in the wrong order | **Stops:** "Pages appear jumbled: position 2 in the file carries footer Page 3 of 4" |
 | `13_cheques_review.pdf` | Six cheque formats (payee printed, self cheque, payee not printed) + a transfer with no name | 28 txns · **952 · APPROVE** · channel CHEQUE, payees read, 4 rows in the Review queue |
 
-### Automated tests (`npm test`, 93 checks)
+### Automated tests (`npm test`, 105 checks)
 | Group | What is checked |
 |---|---|
 | LLM guardrails (10 unit tests) | correct answer accepted · misread amount caught by the balance check · both debit and credit rejected · bad date rejected · unknown account rejected · missing account inherited · row from another page rejected · malformed response rejected · category not allowed for the direction rejected · model confidence capped |
@@ -231,6 +284,7 @@ One synthetic 3-month statement per decision and error path, generated by `tools
 | Scenario statements | each file in `test-statements/scenarios/` gives its decision and reason; the jumbled PDF stops with the page-order error; cheque payees (incl. "MEHTA & SONS") are read |
 | Example statements in the app | all 13 files listed under Show samples exist, and each one's "Expected" text matches a real run of the file |
 | Knowledge sharing page | every template binding uses `{{double braces}}` (a single-brace typo blanks the page) · the page has its 3 topics, the CIBIL comparison, 3 worked cases and 21 FAQ answers |
+| API v1 (real server, temporary database, 2 workers) | sign-up and 401 without a token · uploads (dedupe, bad type, empty) · 6 background jobs from 2 users give the CLI's scores · never more than 2 running · fair scheduling across users · users can't see each other's jobs · jumbled → stopped · password: waits, wrong, right, never stored · review: wrong-direction category rejected, decisions re-score (6 → 5 → 4 pending), audit trail and result versions · after a restart everything is still there and an interrupted job re-runs |
 | Cheques, foreign currency, long statements | a row with no counterparty goes to the Review queue even when small · 5 cheque narration formats give channel CHEQUE, the payee and the cheque number · every row's `currency` is the currency its amounts are in, and foreign card spends keep `original_currency` / `original_amount` · a generated 102-page statement runs as 34 batches with 0 fallbacks and every page inherits the account |
 
 The mock is a **test double, not a model**: it answers in the exact tool format so plumbing and guardrails are tested offline. The real API path was also checked against a local fake of the Messages API (headers, forced tool, temperature 0, 529 retry, tool_use parsing).
@@ -276,14 +330,14 @@ Sample outputs (transactions + credit risk summary + validation) are in `sample-
 3. **OCR.** English only; quality drops on blurred, skewed or low-resolution scans. Integrity checks catch digit errors but cannot fix them.
 4. **Cheques** often don't print the payee. When it is printed after the cheque number (`CHQ PAID-000451-NAME`, `TO CLG CHQ NO … NAME`, `BY CLG/…/NAME`) it is read; otherwise the row gets *Cheque counterparty (not printed)* at 55% and always goes to the Review queue.
 5. **No external data:** no MCC codes for card merchants, no UPI-ID name lookup, IFSC resolves to bank (not branch), no bureau cross-check of EMIs.
-6. **Persistence:** rules, activity log and run history are kept in the browser's local storage only; the backend is a stateless LLM proxy (no database, no multi-user review yet).
+6. **Persistence:** the API (§3b) stores statements, jobs, result versions and review decisions in SQLite on one server; the web app's own runs, rules and activity log still live in the browser's local storage. No user roles yet (every user is an analyst), and uploaded files are stored unencrypted in `DATA_DIR`.
 7. **Scoring** is rules-based and uncalibrated (see Assumptions).
 
 ---
 
 ## 9. Next steps (production)
 1. Measure LLM extraction/classification accuracy on a labelled set of real statements; mask PII before calls; a vision model for poor scans.
-2. Backend service (API + queue + database) for shared rules, audit trail and multi-user review.
+2. Scale the API (§3b) beyond one server: PostgreSQL, a shared queue (Redis / SQS) and object storage; roles (analyst / approver), encryption at rest, and the web app's screens (history, shared review) on top of the API.
 3. RBI **Account Aggregator** ingestion (structured data, no OCR).
 4. Server-side OCR (cloud) for poor scans; bureau and MCC enrichment.
 5. Calibrate weights and cut-offs on historical loan performance.

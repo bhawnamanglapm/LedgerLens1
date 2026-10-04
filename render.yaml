@@ -17,3 +17,7 @@ services:
         value: "300"
       - key: LLM_IP_LIMIT
         value: "120"
+      - key: WORKERS          # background jobs at once (API v1); 1 fits the free plan's memory
+        value: "1"
+# API v1 data (SQLite + uploads) lives in /srv/app/data. The free plan's disk is wiped on every deploy or restart;
+# for data that must survive, add a persistent disk mounted at /srv/app/data (paid plans).

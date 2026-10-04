@@ -219,3 +219,6 @@ __marimo__/
 
 app/node_modules/
 app/.env
+
+# API v1 storage (database + uploaded statements)
+app/data/

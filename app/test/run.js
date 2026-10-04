@@ -226,6 +226,9 @@ function runCli(file, env, extra) {
   const kn = new C({}).knowledge({ knowTab: 'cibil' });
   ok(kn.isKnowCibil && kn.knTopics.length === 3 && kn.knCibilRows.length >= 8 && kn.knCibilCases.length === 3 && kn.knFaq.reduce((n, g) => n + g.items.length, 0) >= 20, 'Knowledge sharing: 3 topics (Why an LLM?, CIBIL vs this analyzer, FAQ), CIBIL comparison, 3 worked cases, ' + kn.knFaq.reduce((n, g) => n + g.items.length, 0) + ' FAQ answers');
 
+  console.log('\n12 · API v1: storage, background queue, review decisions');
+  await require('./api')(ok);
+
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
   process.exit(0);
