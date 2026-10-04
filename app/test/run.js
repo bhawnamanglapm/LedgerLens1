@@ -219,6 +219,13 @@ function runCli(file, env, extra) {
   }
   ok(!bad.length, 'every example\'s "Expected" text in the app matches a real run of its file', bad.join(' | '));
 
+  console.log('\n11 · Knowledge sharing page');
+  const markupTxt = fs.readFileSync(path.join(ROOT, 'public', 'markup.html'), 'utf8');
+  const badHoles = (markupTxt.match(/="\{[^{][^"]*"/g) || []).concat(markupTxt.match(/<sc-(?:if|for)\b(?![^>]*(?:value|list)="\{\{)[^>]*>/g) || []);
+  ok(!badHoles.length, 'page template: every value / list binding uses {{double braces}}', badHoles.slice(0, 3).join(' '));
+  const kn = new C({}).knowledge({ knowTab: 'cibil' });
+  ok(kn.isKnowCibil && kn.knTopics.length === 3 && kn.knCibilRows.length >= 8 && kn.knCibilCases.length === 3 && kn.knFaq.reduce((n, g) => n + g.items.length, 0) >= 20, 'Knowledge sharing: 3 topics (Why an LLM?, CIBIL vs this analyzer, FAQ), CIBIL comparison, 3 worked cases, ' + kn.knFaq.reduce((n, g) => n + g.items.length, 0) + ' FAQ answers');
+
   console.log('\n' + pass + ' passed · ' + fail + ' failed');
   if (fail) { console.log('Failed: ' + failures.join(' | ')); process.exit(1); }
   process.exit(0);

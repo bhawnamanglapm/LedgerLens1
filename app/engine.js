@@ -4,7 +4,7 @@ class Component extends DCLogic {
     this.state = {
       tab: 'home', source: null, pages: [], batches: [], accounts: [], raw: [], error: null,
       stages: null, busy: false, previewPage: 0, threshold: 0.7, customRules: [], csvMsg: '',
-      overrides: {}, cpOverrides: {}, fAcct: 'ALL', fMonth: 'ALL', fFlag: false, fileNote: '', log: [], current: null, runStatus: null, showJson: false, jsonMsg: '', reviewMode: 'smart', confirmAcceptAll: false, cpRules: [], cpRuleMsg: '', ruleDraft: {}, newRule: { match: '', cp: '', cat: '' }, acctDraft: {}, showAcctForm: false, acctSkipped: false, acctMsg: '', orderCheck: null, showVal: false, groupDraft: {}, confirmAcceptAll: false, ocrState: { st: 'idle', msg: 'Not loaded yet', detail: 'Loads automatically for a scan or image (about 7 MB, first use only)' }, showFormats: false, ocrMsg: '', logLevel: 'ALL', logRun: 'ALL', confirmClear: false, openInfo: {}, needPw: null, pwText: ''
+      overrides: {}, cpOverrides: {}, fAcct: 'ALL', fMonth: 'ALL', fFlag: false, fileNote: '', log: [], current: null, runStatus: null, showJson: false, jsonMsg: '', reviewMode: 'smart', confirmAcceptAll: false, cpRules: [], cpRuleMsg: '', knowTab: 'llm', ruleDraft: {}, newRule: { match: '', cp: '', cat: '' }, acctDraft: {}, showAcctForm: false, acctSkipped: false, acctMsg: '', orderCheck: null, showVal: false, groupDraft: {}, confirmAcceptAll: false, ocrState: { st: 'idle', msg: 'Not loaded yet', detail: 'Loads automatically for a scan or image (about 7 MB, first use only)' }, showFormats: false, ocrMsg: '', logLevel: 'ALL', logRun: 'ALL', confirmClear: false, openInfo: {}, needPw: null, pwText: ''
     };
     this._log = [];
     this._runSeq = 0; this._runId = 0;
@@ -165,6 +165,85 @@ class Component extends DCLogic {
     let out = pages.map((p, i) => ({ n: i + 1, text: (p.head ? p.head + '\n\n' : '') + TH + '\n' + p.body.join('\n') + '\n\nPage ' + (i + 1) + ' of ' + N }));
     if (variant === 'jumbled') { const t = out[3]; out[3] = out[4]; out[4] = t; }
     return out.map((p, i) => ({ index: i + 1, text: p.text, chars: p.text.length }));
+  }
+
+  // ---------- knowledge sharing (plain-language guides shown under the Knowledge sharing tab) ----------
+  knowledge(s) {
+    const kt = s.knowTab || 'llm';
+    const topics = [['llm', 'HOW IT WORKS', 'Why an LLM?', 'Where AI reads the statement, and where plain code decides.'], ['cibil', 'ARTICLE', 'CIBIL score vs this analyzer', 'Two different questions a lender asks, and why they use both.'], ['faq', 'FAQ', 'Common questions', 'Scores, decisions, red flags and data safety in plain words.']];
+    return {
+      isKnowLlm: kt === 'llm', isKnowCibil: kt === 'cibil', isKnowFaq: kt === 'faq',
+      knTopics: topics.map(([k, tag, label, sub]) => ({ tag, label, sub, current: kt === k ? 'page' : 'false',
+        style: kt === k ? 'background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1' : 'background:#FFFFFF;color:#16181D;border:1px solid #DAD8D2',
+        tagStyle: kt === k ? 'color:#DCE4FA' : 'color:#1F4FD1', subStyle: kt === k ? 'color:#E6ECFB' : 'color:#4A4F58',
+        click: () => { this.setState({ knowTab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} } })),
+      knCibilPair: [
+        { kicker: 'LOOKS BACK AT YOUR CREDIT', title: 'CIBIL score', color: '#6B3FC4', analogy: 'Think of it as a report card for borrowing: it records how you have handled loans and credit cards in the past.',
+          facts: [{ k: 'Scale', v: '300 to 900 (higher is better)' }, { k: 'Comes from', v: 'A credit bureau. Banks and lenders report every loan and card to it regularly. CIBIL is the best known of India\'s four credit bureaus.' }, { k: 'Sees', v: 'Loans, credit cards, repayments, missed payments, defaults, how much of your card limit you use, how often you applied for credit' }, { k: 'Cannot see', v: 'Your salary, your spending, your savings, or money that moves outside loans and cards' }] },
+        { kicker: 'LOOKS AT YOUR MONEY TODAY', title: 'This bank statement analyzer', color: '#1F4FD1', analogy: 'Think of it as a health check-up of your bank account: it reads every transaction to see how money actually comes in and goes out.',
+          facts: [{ k: 'Scale', v: '0 to 1000, plus a rating band and a decision (Approve, Approve with conditions, Refer, Decline) with reasons' }, { k: 'Comes from', v: 'The applicant\'s own bank statements (PDF, scan, image or CSV)' }, { k: 'Sees', v: 'Salary and other income, EMIs, rent, bills, everyday spending, balances, bounced payments, cash deposits' }, { k: 'Cannot see', v: 'Loans paid from another bank account, or old defaults that no longer show in these statements' }] }
+      ],
+      knCibilRows: [
+        { q: 'What question does it answer?', a: 'Has this person repaid credit in the past?', b: 'Is the income real and steady, and can this person afford one more EMI now?' },
+        { q: 'Does it know the income?', a: 'No. The bureau does not receive salary data.', b: 'Yes. Monthly income by type, how regular it is, how many sources, and whether it is growing.' },
+        { q: 'Can it measure affordability (FOIR)?', a: 'No. FOIR needs income, which the bureau does not have.', b: 'Yes. EMIs as a share of income; above 65% means Decline.' },
+        { q: 'Does it see savings and spending?', a: 'No.', b: 'Yes. Average and lowest balance, days below zero, essential vs optional spending.' },
+        { q: 'Can it spot a fake or edited statement?', a: 'Not applicable: it does not use statements.', b: 'Yes. Every printed balance is re-checked; one edited number breaks the arithmetic and the result becomes Refer.' },
+        { q: 'Does it catch suspicious money flows?', a: 'Only credit behaviour, such as many loan applications in a short time.', b: 'Yes. Money that goes in and straight back out, cash deposits kept just under ₹50,000, round-tripping with the same person.' },
+        { q: 'What about first-time borrowers?', a: 'Often no score yet, because there is no credit history.', b: 'Works for anyone with a bank account, including students, gig workers and first-job applicants.' },
+        { q: 'How up to date is it?', a: 'Depends on when lenders last reported, so it can be a few weeks behind.', b: 'As current as the latest statement uploaded.' },
+        { q: 'How proven is the score?', a: 'Statistically built and tested on millions of real loans over many years.', b: 'In this proof of concept the weights follow the brief and are not yet calibrated on real loan outcomes.' }
+      ],
+      knCibilWhy: [
+        { t: 'CIBIL cannot see income', d: 'A person with a perfect repayment record may have lost their job last month. Their CIBIL score still looks good; their bank statement shows the salary has stopped.' },
+        { t: 'Statements cannot see everything', d: 'A loan repaid from a different bank account, or a default from years ago, only shows up in the bureau report.' },
+        { t: 'Comparing the two finds hidden loans', d: 'If the statement shows an EMI that the bureau does not list (often a new fintech loan), the applicant has an obligation the lender would otherwise miss. If the bureau lists a loan that never appears in the statements, it is being paid from somewhere else.' },
+        { t: 'New-to-credit applicants', d: 'Many people in India have no credit history at all. For them, bank statement analysis is often the only reliable way to judge whether they can repay.' }
+      ],
+      knCibilCases: [
+        { who: 'Priya, salaried for 8 years', cibil: 'High score: every loan and card paid on time. Looks like an easy yes.', bsa: 'Salary credits stopped two months ago and the balance is falling each week.', lesson: 'Past behaviour was good, but current income is the risk. The statement changes the decision.' },
+        { who: 'Arjun, first job after college', cibil: 'No score: he has never taken a loan or a credit card.', bsa: 'Salary arrives on the 1st every month, rent and bills are paid on time, and he saves a little every month.', lesson: 'No credit history does not mean high risk. The statement makes a fair decision possible.' },
+        { who: 'Rahul, two existing loans', cibil: 'Good score; shows one home loan.', bsa: 'Shows that home-loan EMI plus a second EMI to a fintech lender the bureau has not reported yet. Together they take 70% of his salary.', lesson: 'The statement reveals a debt the bureau missed, and FOIR above 65% means Decline.' }
+      ],
+      knCibilToday: [
+        { t: 'Statements only.', d: 'This proof of concept reads bank statements; it does not fetch CIBIL or any other bureau report.' },
+        { t: 'Next step for production:', d: 'pull the bureau report with the applicant\'s consent and cross-check every EMI found in the statements against the loans the bureau lists, flagging any loan that appears in only one of them.' },
+        { t: 'Calibration:', d: 'the component weights follow the assignment brief. Before real lending use, they should be tuned on historical loan outcomes, the same way bureau scores are built.' }
+      ],
+      knFaq: [
+        { group: 'The basics', items: [
+          { q: 'What does this app do?', a: 'You upload bank statements. It reads every transaction, works out where money comes from and goes to, checks the statement is genuine, and gives a credit-risk score from 0 to 1000 with a lending recommendation and the reasons behind it.' },
+          { q: 'Who is it for?', a: 'Banks and lenders that need to decide whether to give someone a loan. It saves an analyst from reading months of statements line by line.' },
+          { q: 'Which files can I upload?', a: 'PDF statements (normal or scanned), photos or scans of pages (PNG, JPG), Excel and CSV downloads from internet banking, and text exports. Password-protected PDFs work too: the app asks for the password.' },
+          { q: 'What is OCR?', a: 'Optical character recognition: software that reads the text in a picture. It lets the app understand scanned pages and phone photos, not just digital PDFs. Blurry or tilted images can cause reading mistakes, which the balance checks catch.' }
+        ] },
+        { group: 'Scores and decisions', items: [
+          { q: 'What does the 0–1000 score mean?', a: 'It combines six areas: income stability (25%), existing debt (20%), cash cushion (15%), banking habits (10%), fraud signals (15%) and spending habits (15%). 800 and above is Excellent, 700–799 Good, 600–699 Fair, 500–599 Below Average, and below 500 Poor.' },
+          { q: 'What do the four decisions mean?', a: 'Approve: go ahead. Approve with conditions: go ahead with a safeguard, for example an automatic EMI mandate on the salary account. Refer: a person must look before deciding, usually because something looks suspicious. Decline: the loan should not be given, for example because existing EMIs already take most of the income.' },
+          { q: 'What is FOIR?', a: 'Fixed Obligation to Income Ratio: how much of each month\'s income already goes to loan EMIs. If you earn ₹1,00,000 and pay ₹40,000 in EMIs, FOIR is 40%. Above 65% the app recommends Decline, whatever the score.' },
+          { q: 'What is an EMI bounce?', a: 'When a loan instalment is collected from your account but there is not enough money, so the bank returns it unpaid and usually charges a fee. One bounce turns Approve into Approve with conditions.' },
+          { q: 'Why does the result say "provisional"?', a: 'Some transactions could not be read or categorised with confidence. Once a person checks them in the Review queue, the result becomes final.' },
+          { q: 'Is this the same as my CIBIL score?', a: 'No. CIBIL looks at your past borrowing; this looks at your bank account today. Open "CIBIL score vs this analyzer" at the top of this page for the full comparison.' }
+        ] },
+        { group: 'Red flags it looks for', items: [
+          { q: 'How can it tell if a statement was edited?', a: 'Every line on a statement must add up: the previous balance plus or minus the amount equals the new balance. If someone changes one number, the arithmetic breaks, and the app marks the statement as possibly tampered with and recommends Refer.' },
+          { q: 'What is "structuring"?', a: 'Depositing cash in several amounts kept just under ₹50,000, the level at which banks must record a PAN. Three or more such deposits within a month is a warning sign.' },
+          { q: 'What is a circular transaction?', a: 'Money that arrives from someone and goes straight back to the same person within a few days. It can make an account look busier or richer than it really is.' },
+          { q: 'Why isn\'t every credit counted as income?', a: 'Money from friends, refunds, loan amounts received, transfers between your own accounts and cash deposits are not earnings. Only salary, business income, interest and rent count, so income is not overstated.' }
+        ] },
+        { group: 'Review and AI', items: [
+          { q: 'What is the Review queue?', a: 'A short list of transactions the app was not sure about and that could change the decision, such as a large unexplained payment or a payment with no name. A person picks the right category or name, and the score updates.' },
+          { q: 'What do RULE, LLM and MANUAL mean?', a: 'They show who labelled a transaction. RULE: fixed rules written for known bank formats. LLM: the AI model, used only for lines the rules could not settle. MANUAL: a person, in the Review queue.' },
+          { q: 'Does the AI make the lending decision?', a: 'No. The AI only reads and labels transactions. Every answer it gives is checked against the statement\'s own balances, and the score and decision are always calculated by fixed rules that can be explained.' },
+          { q: 'Why does the online demo say "Rules only"?', a: 'Using the AI needs a private API key, which must never be put in a public web page. The online demo therefore uses the rules; the full AI mode runs on a computer with its own small server that keeps the key.' }
+        ] },
+        { group: 'Your data', items: [
+          { q: 'Where does my statement go?', a: 'In Rules-only mode, nowhere: everything is read inside your own browser. In AI mode, the page text goes to the app\'s own server and from there to the AI model, and nowhere else.' },
+          { q: 'Is my PDF password stored?', a: 'No. It is used once to open the file and is never saved or written to any log.' },
+          { q: 'Is the example data real?', a: 'No. Every sample statement is made up for testing, with fictional names and account numbers.' }
+        ] }
+      ].map((g) => ({ ...g, n: g.items.length + ' questions' }))
+    };
   }
 
   // ---------- example statements (the files in test-statements/, served next to the page as samples/<file>) ----------
@@ -1762,7 +1841,7 @@ class Component extends DCLogic {
     const R = this.score(T);
     const tax = this.taxonomy();
     const flagged = T.filter((t) => t.flagged);
-    const tabs = [['home', '01', 'Home'], ['ingest', '02', 'Ingest'], ['txns', '03', 'Transactions'], ['review', '04', 'Review queue'], ['risk', '05', 'Risk summary'], ['log', '06', 'Activity log'], ['tax', '07', 'Taxonomy & rules'], ['know', '08', 'Why an LLM?']].map(([k, n, l]) => ({
+    const tabs = [['home', '01', 'Home'], ['ingest', '02', 'Ingest'], ['txns', '03', 'Transactions'], ['review', '04', 'Review queue'], ['risk', '05', 'Risk summary'], ['log', '06', 'Activity log'], ['tax', '07', 'Taxonomy & rules'], ['know', '08', 'Knowledge sharing']].map(([k, n, l]) => ({
       num: n, label: l, badge: k === 'review' && T.length ? String(flagged.length) : (k === 'log' && s.busy ? 'LIVE' : ''), active: s.tab === k, current: s.tab === k ? 'page' : 'false',
       style: s.tab === k ? 'background:#F3F2EE;color:#16181D' : 'background:transparent;color:#E6E8EC',
       numStyle: s.tab === k ? 'color:#1F4FD1' : 'color:#8F949D',
@@ -1929,10 +2008,11 @@ class Component extends DCLogic {
       ocrCanPreload: s.ocrState.st === 'idle' || s.ocrState.st === 'error', ocrPreloadLabel: s.ocrState.st === 'error' ? 'Retry loading' : 'Preload OCR engine',
       preloadOcr: () => { this.log('USER', 'OCR', 'OCR engine preload requested'); this.ocrEngine().catch(() => {}); },
       showBatches: !!s.showBatches, batchExp: s.showBatches ? 'true' : 'false', batchBtn: s.showBatches ? 'Hide details' : 'Show details', toggleBatches: () => this.setState({ showBatches: !this.state.showBatches }), batchSummary: (s.batches || []).length + ' batch' + ((s.batches || []).length === 1 ? '' : 'es') + ' · ' + (s.batches || []).reduce((a, b) => a + (+b.rows || 0), 0) + ' rows read',
-      pageTitle: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Why an LLM?', 'Knowledge sharing: why an LLM is needed, where it fits in the pipeline and how it is integrated.'] }[s.tab] || ['', ''])[0], pageSub: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Why an LLM?', 'Knowledge sharing: why an LLM is needed, where it fits in the pipeline and how it is integrated.'] }[s.tab] || ['', ''])[1],
+      pageTitle: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[0], pageSub: ({ ingest: ['Ingest', 'Upload statements and check how they were read.'], txns: ['Transactions', 'Every extracted row with its category, confidence and how it was decided.'], review: ['Review queue', 'Only the items that can change the credit decision.'], risk: ['Risk summary', 'Six weighted components, a score out of 1000 and a decision.'], log: ['Activity log', 'Every step of every run, kept in this browser.'], tax: ['Taxonomy & rules', 'Categories, keywords and your own counterparty rules.'], know: ['Knowledge sharing', 'Plain-language guides: why an LLM is used, how this differs from a CIBIL score, and answers to common questions.'] }[s.tab] || ['', ''])[1],
       showPreview: !!s.showPreview, previewExp: s.showPreview ? 'true' : 'false', previewBtn: s.showPreview ? 'Hide text' : 'Show text', togglePreview: () => this.setState({ showPreview: !this.state.showPreview }),
       isHome: s.tab === 'home', notHome: s.tab !== 'home',
       isKnow: s.tab === 'know',
+      ...this.knowledge(s),
       knWhy: [
         ['Every bank lays out its statement differently', 'Column order, date formats, headers and footers vary, and banks change them over time. Rules must be written per bank and break when a layout changes. An LLM can read a layout it has never seen.', ''],
         ['Narrations are cryptic', 'Finding the counterparty, the purpose and the loan number in these needs judgement, not just pattern matching.', 'IMPS/P2A/507612340111/VIKRAM TRADERS/Advance · ACH D-TATA CAP-TCFPL0012345 · UPI/5017…/MR K/okaxis'],
@@ -1960,7 +2040,7 @@ class Component extends DCLogic {
         { n: 'B', title: 'Sort every transaction', what: 'Gives each row a category such as Salary, EMI, Rent or Refund, with a confidence score.', points: [{ t: 'Rules first, then the AI step, then a person for what is still unclear' }, { t: 'Keeps person-to-person transfers and refunds out of income' }, { t: 'Your own CSV can extend or replace the categories' }], out: 'Category, confidence and method on every row' },
         { n: 'C', title: 'Score the applicant', what: 'Combines six parts into a score out of 1000, a rating band and a decision.', points: [{ t: 'Income, debt, liquidity, banking behaviour, fraud signals, spending' }, { t: 'Lists the reasons behind the decision' }, { t: 'Exports everything as JSON' }], out: 'Score, band, decision and reasons' }
       ],
-      homeTabs: [['ingest', '02', 'Ingest', 'Upload statements and see how each step went.'], ['txns', '03', 'Transactions', 'Every row with its category and confidence.'], ['review', '04', 'Review queue', 'Decide the few items that can change the outcome.'], ['risk', '05', 'Risk summary', 'Score, decision, reasons and JSON export.'], ['log', '06', 'Activity log', 'History of every run and step.'], ['tax', '07', 'Taxonomy & rules', 'Categories, keywords and your own rules.'], ['know', '08', 'Why an LLM?', 'Why an LLM is needed, where it fits and how it is integrated.']].map(([k, num, label, desc]) => ({ num, label, desc, go: () => { this.setState({ tab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} } })),
+      homeTabs: [['ingest', '02', 'Ingest', 'Upload statements and see how each step went.'], ['txns', '03', 'Transactions', 'Every row with its category and confidence.'], ['review', '04', 'Review queue', 'Decide the few items that can change the outcome.'], ['risk', '05', 'Risk summary', 'Score, decision, reasons and JSON export.'], ['log', '06', 'Activity log', 'History of every run and step.'], ['tax', '07', 'Taxonomy & rules', 'Categories, keywords and your own rules.'], ['know', '08', 'Knowledge sharing', 'Why an LLM is used, CIBIL vs this analyzer, and an FAQ.']].map(([k, num, label, desc]) => ({ num, label, desc, go: () => { this.setState({ tab: k }); try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) {} } })),
       homeWeights: [['Income stability', 'how regular and steady income is', 25], ['Debt service', 'EMIs as a share of income, bounces', 20], ['Liquidity', 'balances kept in the account', 15], ['Banking behaviour', 'bounces, penalties, overdraft', 10], ['Fraud indicators', 'tampering and suspicious flows', 15], ['Expense management', 'spending pattern and savings', 15]].map(([name, what, pct]) => ({ name, what, pct, bar: 'height:6px;border-radius:3px;background:#1F4FD1;width:' + (pct * 4) + '%' })),
       homeBands: [['Excellent', '800+', 'Approve', '#EAF6EE', '#14532D'], ['Good', '700–799', 'Approve', '#EAF6EE', '#14532D'], ['Fair', '600–699', 'With conditions', '#FFF8E6', '#5C4300'], ['Below average', '500–599', 'Refer', '#FFF6EC', '#7A3A06'], ['Poor', '<500', 'Decline', '#FDF0EE', '#7A1A12']].map(([band, range, dec, bg, fg]) => ({ band, range, dec, style: 'background:' + bg + ';color:' + fg })),
       setAiRules: () => this.setState({ aiMode: 'rules', aiModeChosen: true }),

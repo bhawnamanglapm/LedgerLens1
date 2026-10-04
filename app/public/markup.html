@@ -826,6 +826,16 @@ Page 1 of 12</pre></div>
 
 <!-- ============ KNOWLEDGE ============ -->
 <sc-if value="{{isKnow}}" hint-placeholder-val="{{false}}">
+<nav aria-label="Knowledge sharing topics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px">
+<sc-for list="{{knTopics}}" as="k" hint-placeholder-count="3">
+<button type="button" onClick="{{k.click}}" aria-current="{{k.current}}" style="{{k.style}};border-radius:6px;padding:14px 16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-height:44px">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;{{k.tagStyle}}">{{k.tag}}</span>
+<strong style="font-size:15px">{{k.label}}</strong>
+<span style="font-size:12.5px;{{k.subStyle}}">{{k.sub}}</span>
+</button>
+</sc-for>
+</nav>
+<sc-if value="{{isKnowLlm}}" hint-placeholder-val="{{true}}">
 <section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:6px;border-left:4px solid #1F4FD1">
 <span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">IN ONE LINE</span>
 <p style="margin:0;font-size:15px;color:#16181D"><strong>The LLM reads and understands. Code checks, scores and decides.</strong></p>
@@ -924,6 +934,90 @@ Page 1 of 12</pre></div>
 </sc-for>
 </div>
 </section>
+</sc-if>
+
+<sc-if value="{{isKnowCibil}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #1F4FD1">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">IN ONE LINE</span>
+<p style="margin:0;font-size:15px;color:#16181D"><strong>A CIBIL score shows whether you have repaid credit before. This analyzer shows whether you can afford a new loan today.</strong></p>
+<p style="margin:0;font-size:13px;color:#4A4F58;max-width:72ch">Lenders in India usually look at both. They answer different questions, use different data, and catch different problems. This page explains the difference in plain language.</p>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:stretch">
+<sc-for list="{{knCibilPair}}" as="c" hint-placeholder-count="2">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px;border-top:4px solid {{c.color}}">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">{{c.kicker}}</span>
+<h2 style="margin:0;font-size:18px;font-weight:600">{{c.title}}</h2>
+<p style="margin:0;font-size:13.5px;color:#30343B">{{c.analogy}}</p>
+<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px">
+<sc-for list="{{c.facts}}" as="f" hint-placeholder-count="4"><span style="color:#4A4F58;font-weight:600">{{f.k}}</span><span style="color:#16181D">{{f.v}}</span></sc-for>
+</div>
+</div>
+</sc-for>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Side by side</h2>
+<div style="overflow-x:auto">
+<table class="tbl">
+<thead><tr><th>Question</th><th>CIBIL score</th><th>This analyzer</th></tr></thead>
+<tbody>
+<sc-for list="{{knCibilRows}}" as="r" hint-placeholder-count="10">
+<tr><td style="font-weight:600;min-width:160px">{{r.q}}</td><td style="min-width:200px">{{r.a}}</td><td style="min-width:200px">{{r.b}}</td></tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Why lenders use both</h2>
+<sc-for list="{{knCibilWhy}}" as="w" hint-placeholder-count="4">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px"><strong style="font-size:13.5px">{{w.t}}</strong><span style="font-size:13px;color:#30343B">{{w.d}}</span></div>
+</sc-for>
+</div>
+<div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">Three applicants, three stories</h2>
+<p style="margin:0;font-size:13px;color:#30343B">Made-up examples showing what each tool sees on its own.</p>
+<sc-for list="{{knCibilCases}}" as="x" hint-placeholder-count="3">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;gap:6px">
+<strong style="font-size:13.5px">{{x.who}}</strong>
+<span style="font-size:13px;color:#30343B"><strong>CIBIL alone:</strong> {{x.cibil}}</span>
+<span style="font-size:13px;color:#30343B"><strong>Bank statements:</strong> {{x.bsa}}</span>
+<span style="font-size:12.5px;font-weight:600;color:#1F4FD1">{{x.lesson}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">How this proof of concept handles it today</h2>
+<sc-for list="{{knCibilToday}}" as="t" hint-placeholder-count="3">
+<div style="display:flex;gap:10px;font-size:13px;color:#30343B"><span aria-hidden="true" style="color:#1F4FD1;font-weight:700">→</span><span><strong>{{t.t}}</strong> {{t.d}}</span></div>
+</sc-for>
+</section>
+</sc-if>
+
+<sc-if value="{{isKnowFaq}}" hint-placeholder-val="{{false}}">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #1F4FD1">
+<span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">FREQUENTLY ASKED QUESTIONS</span>
+<p style="margin:0;font-size:15px;color:#16181D"><strong>Short, plain answers about what this analyzer does, what its results mean and how your data is handled.</strong></p>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{knFaq}}" as="g" hint-placeholder-count="5"><span style="font-size:12px;font-weight:600;color:#1B2B5C;background:#F2F5FD;border:1px solid #C9D4F2;border-radius:999px;padding:4px 10px">{{g.group}} · {{g.n}}</span></sc-for>
+</div>
+</section>
+<sc-for list="{{knFaq}}" as="g" hint-placeholder-count="5">
+<section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font-size:16px;font-weight:600">{{g.group}}</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:12px">
+<sc-for list="{{g.items}}" as="f" hint-placeholder-count="4">
+<div style="border:1px solid #E4E1DA;background:#FAFAF7;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:4px;gap:6px"><strong style="font-size:13.5px;color:#16181D">{{f.q}}</strong><span style="font-size:13px;color:#30343B;line-height:1.5">{{f.a}}</span></div>
+</sc-for>
+</div>
+</section>
+</sc-for>
+</sc-if>
 </sc-if>
 
 <!-- ============ TAXONOMY ============ -->
