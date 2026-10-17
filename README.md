@@ -6,22 +6,28 @@
 
 **Product blueprint and MVP PRD:** [docs/LedgerLens_Product_Blueprint.pdf](docs/LedgerLens_Product_Blueprint.pdf). It covers market research on Indian and global statement-analysis players, personas, end-to-end flow, architecture, validation and risk engines, API design, user journeys, MoSCoW roadmap, MVP PRD, KPIs, UX structure, gap analysis and five differentiating bets.
 
-LedgerLens ingests raw bank statements (digital PDF, scanned PDF, images, Excel, CSV, text), extracts every transaction, classifies it, validates the data and produces a structured credit-risk summary: a 0–1000 score, a rating band and a decision recommendation.
+LedgerLens is a proof-of-concept workflow for extracting and classifying bank-statement transactions, checking selected data-integrity rules and producing an exploratory risk score and label.
 
-It comes in three forms that share **one engine** (`app/engine.js`):
+> **Prototype only — not for real credit decisions.** The score weights, cut-offs and decision labels are illustrative and have not been calibrated or independently validated on loan outcomes. Arithmetic and page-order checks can flag some inconsistencies; they cannot establish that a statement is authentic or complete. Use the synthetic samples only. Do not upload real customer or personal financial data to a public or shared deployment.
+
+The intended reviewer is a credit analyst or product/engineering reviewer exploring a statement-analysis workflow; that audience and its needs have not been validated. See [docs/PRODUCT_STATUS.md](docs/PRODUCT_STATUS.md) for verified evidence, unknowns and the prioritized backlog.
+
+It comes in three forms. The local app and CLI use **one engine** (`app/engine.js`); the hosted artifact has a standalone browser copy:
 
 | | Hosted page (claude.ai link) | Local app (`npm start`) | Command line |
 |---|---|---|---|
 | What | Interactive UI: upload, pipeline, transactions, review queue, risk summary, activity log, taxonomy, **Knowledge sharing** (Why an LLM?, CIBIL score vs this analyzer, How the score is calculated, FAQ) | Same UI served by a small backend | Same pipeline, writes the JSON output |
-| AI step | **Rules only** (no backend can run there) | **LLM (Claude)** for batch extraction and unclear-row classification, rules as cross-check and fallback | `--llm` flag |
+| AI step | **Rules only** (no backend can run there) | **LLM (Claude)** for batch extraction and unclear-row classification, with rules as cross-check/fallback | `--llm` flag |
 | Runs | In the browser | Browser + Node 18 backend on your machine | Node 18 |
+
+The linked Claude artifact is a separate deployment: changes to `web/LedgerLens.dc.html` do not update it automatically. Its current deployed behavior and data-retention behavior have not been independently verified; use only synthetic samples there.
 
 ---
 
 ## 1. Setup
 
 ### Hosted page
-Open https://claude.ai/artifact/JkAAGFzSJga3bhCpKa9Vk4. Nothing to install; uploaded statements stay in the browser. Ingest → **Show samples → Example statements** runs any test file from `test-statements/` in one click (the local app offers the same list). The AI step shows **Rules only** because a hosted page cannot hold an API key.
+Open https://claude.ai/artifact/JkAAGFzSJga3bhCpKa9Vk4. Nothing to install; the repository's artifact source has no application backend and runs the rules in the browser. Ingest → **Show samples → Example statements** runs synthetic test files in one click. The deployed artifact is separate from this source and has not been independently checked; use synthetic samples only and do not upload real financial data.
 
 ### Local app with the LLM (recommended for the review)
 Quickest: run `./setup.sh` (Windows: `setup.ps1`) — it checks Node, installs, creates `app/.env` and runs the tests. Or by hand:
@@ -54,7 +60,7 @@ cd app && npm test        # 109 checks, offline, ~1 min — no API key needed
 GitHub Actions runs the same tests on every push (`.github/workflows/test.yml`).
 
 ### Sharing a cloud link
-Only if reviewers ask: `Dockerfile` + `render.yaml`, with a password, a demo banner and model-call limits. Step-by-step in **`DEPLOY.md`**.
+Only if reviewers ask: `Dockerfile` + `render.yaml`, with a password, a demo banner and model-call limits. Step-by-step in **`DEPLOY.md`**. The local server binds to `127.0.0.1` by default; if exposing it beyond the machine, set `APP_PASSWORD` because browser-password protection is bypassed when it is unset. API v1 uses separate bearer tokens. `DEMO_MODE=1` is a banner, not an access or upload restriction.
 
 ---
 
@@ -88,21 +94,21 @@ flowchart LR
 | **Smart review** | Rows under the threshold (default 70%) are flagged, but only **high-impact** ones are queued: ≥ ₹10k (or 5% of income), credits ≥ ₹5k (possible income), monthly recurring (possible EMI/rent), loan-related, possible bounce. Low-impact one-offs are auto-accepted and marked, except rows with no counterparty, which are always queued. Similar rows are grouped; one decision applies to all; decisions can be saved as rules for future statements. |
 | **Score** | Six weighted components → composite 0–1000, band and decision with reasons (see §4). |
 
-**Key files:** `app/engine.js` (engine — identical to the web logic, incl. the LLM layer), `app/llm.js` (model transport), `app/server.js` (backend), `app/public/` (local UI runtime + markup), `app/cli.js` (CLI), `app/pipeline.js` (headless pipeline shared by the CLI and the API workers), `app/backend/` (API v1: `db.js`, `queue.js`, `worker.js`, `api.js`), `app/test/run.js` (tests), `web/LedgerLens.dc.html` (hosted UI), `tools/` (test-statement generators).
+**Key files:** `app/engine.js` (local app/CLI engine), `app/llm.js` (model transport), `app/server.js` (backend), `app/public/` (local UI runtime + markup), `app/cli.js` (CLI), `app/pipeline.js` (headless pipeline shared by the CLI and the API workers), `app/backend/` (API v1: `db.js`, `queue.js`, `worker.js`, `api.js`), `app/test/run.js` (tests), `web/LedgerLens.dc.html` (standalone hosted-artifact source), `tools/` (synthetic test-statement generators).
 
 ---
 
 ## 3. Key design decisions
 
-1. **Rules first, model second, human last.** Indian narrations are semi-structured (UPI/NEFT/NACH formats); deterministic rules are fast, free, explainable and auditable for a credit decision. The model only handles leftovers; humans only see what can change the decision.
-2. **Confidence + method on every field that matters.** Counterparty and category both carry a confidence; credit officers can see *how* each label was produced.
-3. **Integrity over coverage.** Balance arithmetic is checked on every row and opening + movements = closing per account. A broken balance **forces REFER** regardless of score — an OCR misread or an edited PDF must never silently produce an APPROVE.
-4. **Decision = band + hard overrides.** The band sets the base decision; policy rules override it (no verifiable income → DECLINE; FOIR > 65% → DECLINE; tampering, structuring, circular flows → REFER; any EMI bounce → at most APPROVE WITH CONDITIONS). Reasons are always listed.
+1. **Rules first, model second, human review for selected rows.** Indian narrations are semi-structured (UPI/NEFT/NACH formats); deterministic rules are inspectable in this prototype. The model handles some unresolved rows; the review queue surfaces selected uncertain items. These steps have not been validated as a lending workflow.
+2. **Confidence + method on every field that matters.** Counterparty and category carry a confidence and method; reviewers can inspect how the prototype labeled them.
+3. **Arithmetic checks, not authenticity checks.** Balance arithmetic is checked on rows and opening + movements = closing per account. A detected mismatch can force REFER, but valid arithmetic does not prove a statement is genuine or complete, and not every OCR or alteration error is guaranteed to be caught.
+4. **Illustrative label = band + configured overrides.** The band sets a prototype label; example rules include no verifiable income → DECLINE, FOIR > 65% → DECLINE, selected flags → REFER and detected EMI bounce → at most APPROVE WITH CONDITIONS. These are uncalibrated rules, not a lending policy; reasons are shown for inspection.
 5. **Not every credit is income.** Income = SALARY, BUSINESS_INCOME, INTEREST, RENTAL_INCOME only. P2P receipts, refunds, reversals, loan disbursals, own-account transfers, card payments and cash deposits are excluded.
 6. **Review effort is a product constraint.** A queue nobody can finish is useless, hence materiality triage, grouping and learnable rules.
-7. **Privacy by choice.** Rules-only mode processes everything on the user's device; LLM mode sends page text only to your own backend and the model; passwords are never stored or logged.
-8. **One engine, every shell.** The same code powers the hosted page, the local app and the CLI, so the JSON from the CLI equals what the UI shows.
-9. **The model proposes, code verifies.** Every model row must pass the same balance arithmetic as the statement itself; anything that fails is retried once and otherwise replaced by the rule parser, so a model error can't change a decision silently.
+7. **Data flows vary by surface.** Browser analysis parses files locally; browser activity/rule data may persist and may sync to a connected backend. LLM mode sends extracted page text through the configured backend to the configured model. The API v1 separately stores uploaded files unencrypted in `DATA_DIR`.
+8. **Shared local core, separate hosted copy.** The local app and CLI use the same engine; `web/LedgerLens.dc.html` is a standalone hosted-artifact source and is not automatically deployed.
+9. **The model proposes; checks catch some errors.** Model rows are format-checked and subjected to balance checks; failed rows are retried or replaced by the rule parser. These controls do not guarantee every field is correct or prove authenticity, and do not validate a credit outcome.
 
 ## 3a. LLM integration
 
@@ -332,20 +338,19 @@ Sample outputs (transactions + credit risk summary + validation) are in `sample-
 
 1. **LLM accuracy not yet measured on real statements.** The integration is real and tested end to end with a mock and a fake API, but this package was not run against the live model with real bank statements; accuracy, cost and latency should be measured on a labelled set before production. The hosted claude.ai page runs rules only (no backend there).
 2. **Narration formats.** Built from public explainers and common patterns; banks vary by core system. Unknown formats fall to review and can be taught via counterparty rules (stored per browser).
-3. **OCR.** English only; quality drops on blurred, skewed or low-resolution scans. Integrity checks catch digit errors but cannot fix them.
+3. **OCR.** English only; quality drops on blurred, skewed or low-resolution scans. Integrity checks may flag some digit errors but cannot guarantee detection or correct them.
 4. **Cheques** often don't print the payee. When it is printed after the cheque number (`CHQ PAID-000451-NAME`, `TO CLG CHQ NO … NAME`, `BY CLG/…/NAME`) it is read; otherwise the row gets *Cheque counterparty (not printed)* at 55% and always goes to the Review queue.
 5. **No external data:** no MCC codes for card merchants, no UPI-ID name lookup, IFSC resolves to bank (not branch), no bureau cross-check of EMIs.
-6. **Persistence:** the API (§3b) stores statements, jobs, result versions, review decisions and the shared activity log in SQLite on one server; the web app's own runs and counterparty rules still live in the browser's local storage (its activity log is copied to the server when one is connected). No user roles yet (every user is an analyst), and uploaded files are stored unencrypted in `DATA_DIR`.
-7. **Scoring** is rules-based and uncalibrated (see Assumptions).
+6. **Persistence and privacy:** the API (§3b) stores uploaded statements, jobs, result versions, review decisions and the shared activity log in SQLite/on disk on one server. Uploaded files are stored unencrypted in `DATA_DIR`; no retention or deletion policy is documented here. The web app also keeps runs and counterparty rules in browser local storage; its activity log is copied to the server when connected. The local app has no analyst/approver roles. Treat this as a prototype, not a production data-handling design.
+7. **Scoring and statement integrity:** scores are rules-based and uncalibrated (see Assumptions). A balanced statement can still be altered or incomplete; the checks do not prove authenticity.
+8. **Demo mode is a notice, not an input control:** `DEMO_MODE=1` displays a synthetic-data banner, but does not technically block real uploads or enforce synthetic-only use. Restrict access and use synthetic data; do not expose a shared deployment without an owner-reviewed access and data-retention plan.
+9. **Hosted artifact:** this repository contains a source file, not a verified deployment pipeline for the linked Claude artifact. Updating the source does not update the live URL.
+10. **Dependency security:** `npm audit --omit=dev` reported four advisories in the installed dependency tree (three high, one critical), including `pdfjs-dist`, `xlsx` and a transitive `tar` dependency. They have not been remediated; assess affected package paths and compatible parser upgrades/replacements before using the upload surface with untrusted files.
 
 ---
 
-## 9. Next steps (production)
-1. Measure LLM extraction/classification accuracy on a labelled set of real statements; mask PII before calls; a vision model for poor scans.
-2. Scale the API (§3b) beyond one server: PostgreSQL, a shared queue (Redis / SQS) and object storage; roles (analyst / approver), encryption at rest, and the web app's screens (history, shared review) on top of the API.
-3. RBI **Account Aggregator** ingestion (structured data, no OCR).
-4. Server-side OCR (cloud) for poor scans; bureau and MCC enrichment.
-5. Calibrate weights and cut-offs on historical loan performance.
+## 9. Next steps
+See the P0/P1/P2 backlog and completion conditions in [docs/PRODUCT_STATUS.md](docs/PRODUCT_STATUS.md). Before any real-data or lending use, prioritize a privacy/retention/access review and independent evaluation on appropriately consented, representative data. Do not treat infrastructure scale-up or a polished demo as evidence of readiness.
 
 See `DEMO_SCRIPT.md` for the walkthrough recording.
 ---
@@ -354,23 +359,23 @@ See `DEMO_SCRIPT.md` for the walkthrough recording.
 
 The same questions are answered in the app under **Knowledge sharing → Common questions**.
 
-**What does this app do?** You upload bank statements. It reads every transaction, works out where money comes from and goes to, checks the statement is genuine, and gives a credit-risk score from 0 to 1000 with a recommendation and the reasons behind it.
+**What does this app do?** It is a proof of concept that extracts and classifies transactions, runs selected arithmetic/page checks and shows an experimental 0–1000 score with a rules-based label. Those checks cannot establish that a statement is genuine. The score and label are not validated for credit decisions.
 
 **Which files can I upload?** PDF statements (digital or scanned), photos or scans of pages (PNG, JPG), Excel and CSV downloads from internet banking, and text exports. Password-protected PDFs work; the app asks for the password.
 
 **What is OCR?** Software that reads the text in a picture, so scanned pages and phone photos can be understood. Blurry or tilted images can cause reading mistakes; the balance checks catch them.
 
-**What does the 0–1000 score mean?** Six areas combined: income stability 25%, existing debt 20%, cash cushion 15%, banking habits 10%, fraud signals 15%, spending habits 15%. 800+ Excellent, 700–799 Good, 600–699 Fair, 500–599 Below Average, under 500 Poor.
+**What does the 0–1000 score mean?** It is the output of six developer-defined, weighted prototype rules: income stability 25%, existing debt 20%, cash cushion 15%, banking habits 10%, fraud signals 15%, spending habits 15%. The band cut-offs are illustrative; the score is not a probability of default, bureau score or validated measure of creditworthiness.
 
-**What do the four decisions mean?** *Approve*: go ahead. *Approve with conditions*: go ahead with a safeguard, such as an automatic EMI mandate. *Refer*: a person must look first, usually because something looks suspicious. *Decline*: don't lend, for example because EMIs already take most of the income.
+**What do the four decisions mean?** They are labels emitted by prototype rules, not instructions to lend or decline. Their thresholds have not been validated; a human review of flagged transactions does not make the result a validated credit decision.
 
-**What is FOIR?** Fixed Obligation to Income Ratio: the share of monthly income already going to EMIs. Earn ₹1,00,000 and pay ₹40,000 in EMIs → FOIR 40%. Above 65% the app recommends Decline.
+**What is FOIR?** Fixed Obligation to Income Ratio: the share of monthly income already going to EMIs. Earn ₹1,00,000 and pay ₹40,000 in EMIs → FOIR 40%. The prototype has an illustrative 65% override; it is not a validated lending policy.
 
-**What is an EMI bounce?** A loan instalment the bank couldn't collect because the account didn't have enough money; it is returned unpaid, usually with a fee. One bounce turns Approve into Approve with conditions.
+**What is an EMI bounce?** A loan instalment the bank couldn't collect because the account didn't have enough money; it is returned unpaid, usually with a fee. The prototype has a heuristic that can change its label after a detected bounce; this is not a validated policy.
 
-**Why does a result say "provisional"?** Some transactions couldn't be read or categorised with confidence. Once a person checks them in the Review queue, the result is final.
+**Why does a result say "provisional"?** Some transactions could not be read or categorised with confidence. Resolving review items changes the prototype analysis status; it does not establish accuracy or make the output a final lending decision.
 
-**How can it tell if a statement was edited?** Every line must add up: previous balance ± amount = new balance. Change one number and the arithmetic breaks, so the statement is marked as possibly tampered with and the decision becomes Refer.
+**Can it tell if a statement was edited?** It checks selected arithmetic and page-order rules. Some alterations may cause a mismatch, but a consistent edit or fabricated statement can pass. These checks do not verify authenticity.
 
 **What is "structuring"?** Cash deposits kept just under ₹50,000, the amount above which a PAN must be quoted. Three or more within a month is a warning sign.
 
@@ -380,9 +385,8 @@ The same questions are answered in the app under **Knowledge sharing → Common 
 
 **What do RULE, LLM and MANUAL mean?** Who labelled a transaction: fixed rules, the AI model (only for lines the rules couldn't settle), or a person in the Review queue.
 
-**Does the AI make the lending decision?** No. It only reads and labels transactions; every answer is checked against the statement's balances, and the score and decision always come from fixed, explainable rules.
+**Does the AI make the lending decision?** The model can help extract or classify transaction data in local LLM mode. Some outputs are checked by rules and arithmetic checks, but that does not guarantee every field is correct. Prototype score labels come from fixed rules and are not validated lending decisions.
 
 **Why does the online demo say "Rules only"?** The AI needs a private API key, which must never be in a public web page. The full AI mode runs locally with its own small server holding the key.
 
-**Where does my statement go?** On the online demo, nowhere: it is read inside your browser. When the app runs on your own server, the activity log (step messages, including file names, account numbers and results) is also saved on that server so the team can see it; in AI mode, page text goes to that server and from there to the model, nowhere else. PDF passwords are used once and never stored.
-
+**Where does my statement go?** In the repository's browser-only artifact source, files are processed in the browser, but browser-side activity/rule data may persist; the deployed third-party artifact has not been independently checked. In the local web app, LLM mode sends extracted page text through the configured backend to the configured model, and activity may be saved on the server. The separate API v1 stores uploaded files unencrypted under `DATA_DIR`. PDF passwords are used to open a file and are not intentionally saved. Use synthetic data only; `DEMO_MODE=1` shows a banner but does not block real data.
