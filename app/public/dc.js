@@ -96,6 +96,9 @@
 
   async function boot() {
     root = document.getElementById('app');
+    const pdfjsLib = await import('/_blob/4a0f482804d6ee61720dc1a0e38619bd');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/_blob/e7450d4a01f4982d04f09e647968f2c2';
+    window.pdfjsLib = pdfjsLib;
     const txt = await (await fetch('/markup.html')).text();
     const prepared = txt
       .replace(/<sc-if\b/g, '<template data-sc="if"').replace(/<\/sc-if>/g, '</template>')

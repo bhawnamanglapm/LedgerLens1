@@ -55,6 +55,10 @@ function runCli(file, env, extra) {
   ok(r.errors.some((e) => /not in this batch/.test(e)), 'row from a page outside the batch is rejected');
   r = c.llmCheckBatch({ foo: 1 }, pages, ex, prev, null);
   ok(r.errors.length === 1, 'malformed response is rejected');
+  const xlsx = window.XLSX; const wb = xlsx.utils.book_new();
+  xlsx.utils.book_append_sheet(wb, xlsx.utils.aoa_to_sheet([['Date', 'Narration', 'Debit'], [new Date(2025, 0, 2), 'UPI, MARKET', 125.5]]), 'Statement');
+  const excelPages = c.excelToPages(xlsx.write(wb, { type: 'array', bookType: 'xlsx' }), 'fixture.xlsx');
+  ok(excelPages.length === 1 && excelPages[0].text.includes('"UPI, MARKET"') && excelPages[0].text.includes('125.5'), 'XLSX workbook reads sheet rows and quotes CSV delimiters');
   // classification allow-list
   const c2 = new C({}); c2._llmStats = { calls: 0, clsCalls: 0, fallbacks: 0, clsDone: 0, inTok: 0, outTok: 0, ms: 0 };
   c2.callLLM = async (req) => ({ ok: true, input: { items: [{ id: 'c0', category: 'SALARY', confidence: 0.99, reason: 'x' }, { id: 'c1', category: 'SHOPPING', confidence: 0.99, reason: 'y' }] }, usage: {} });

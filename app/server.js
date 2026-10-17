@@ -53,12 +53,22 @@ function authorised(req) {
   const a = Buffer.from(pw); const b = Buffer.from(PASSWORD);
   return a.length === b.length && require('crypto').timingSafeEqual(a, b);
 }
-const nm = (p) => path.join(path.dirname(require.resolve(p.split('/').slice(0, p.startsWith('@') ? 2 : 1).join('/') + '/package.json')), p.split('/').slice(p.startsWith('@') ? 2 : 1).join('/'));
+const nm = (p) => {
+  const parts = p.split('/'); const packageParts = parts.slice(0, p.startsWith('@') ? 2 : 1);
+  const packageName = packageParts.join('/'); const assetPath = parts.slice(packageParts.length).join('/');
+  let packageJson;
+  try { packageJson = require.resolve(packageName + '/package.json'); }
+  catch (e) {
+    if (e.code !== 'ERR_PACKAGE_PATH_NOT_EXPORTED') throw e;
+    packageJson = path.join(path.dirname(require.resolve(packageName)), 'package.json');
+  }
+  return path.join(path.dirname(packageJson), assetPath);
+};
 
 // asset ids used by the page → files from node_modules (same versions as the claude.ai build)
 const BLOBS = {
-  e7450d4a01f4982d04f09e647968f2c2: () => nm('pdfjs-dist/build/pdf.worker.min.js'),
-  '4a0f482804d6ee61720dc1a0e38619bd': () => nm('pdfjs-dist/build/pdf.min.js'),
+  e7450d4a01f4982d04f09e647968f2c2: () => nm('pdfjs-dist/legacy/build/pdf.worker.min.mjs'),
+  '4a0f482804d6ee61720dc1a0e38619bd': () => nm('pdfjs-dist/legacy/build/pdf.min.mjs'),
   '38856ac12876fc133e6a5e7e2a3e65ac': () => nm('tesseract.js/dist/tesseract.min.js'),
   '0087241456d1e94727651e9f8590019f': () => nm('tesseract.js/dist/worker.min.js'),
   '832811907f63931b00f56362d65c0d26': () => nm('tesseract.js-core/tesseract-core-lstm.wasm.js'),
