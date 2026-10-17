@@ -59,7 +59,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <div class="sideIn" style="position:sticky;top:0;padding:24px 16px;display:flex;flex-direction:column;gap:22px">
 <div class="sideHead" style="display:flex;flex-direction:column;gap:4px;padding:0 8px">
 <div style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:20px;letter-spacing:-.01em">LedgerLens</div>
-<div class="sideSub" style="font-size:12px;color:#B9BDC6">Statement → transactions → credit decision</div>
+<div class="sideSub" style="font-size:12px;color:#B9BDC6">Statement → transactions → prototype analysis</div>
 <button type="button" class="navToggle" onClick="{{toggleNav}}" aria-expanded="{{navOpenAttr}}" aria-controls="mainNav" aria-label="{{navBtnLabel}}" style="align-items:center;gap:10px;min-height:44px;padding:6px 12px;background:#2A2D34;color:#FFFFFF;border:1px solid #474B54;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;max-width:70%;min-width:0">
 <span class="mono" style="font-size:11px;color:#8F949D">{{navCurNum}}</span>
 <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{navCur}}</span>
@@ -125,9 +125,10 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <section aria-labelledby="homeH" style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;padding:32px;display:flex;flex-direction:column;gap:18px">
 <span style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58;color:#1F4FD1">BANK STATEMENT ANALYZER · PROOF OF CONCEPT</span>
 <div style="display:flex;flex-direction:column;gap:8px;max-width:760px">
-<h1 id="homeH" style="margin:0;font-size:32px;line-height:1.15;font-weight:600;letter-spacing:-.015em">From bank statement to credit decision, with every step checked.</h1>
-<p style="margin:0;font-size:15px;color:#30343B">LedgerLens reads a bank statement, sorts every transaction into a category and scores the applicant's credit risk out of 1000. It shows its work at each step, so a credit officer can see why it reached a decision.</p>
+<h1 id="homeH" style="margin:0;font-size:32px;line-height:1.15;font-weight:600;letter-spacing:-.015em">Explore statement analysis — not a lending decision.</h1>
+<p style="margin:0;font-size:15px;color:#30343B">LedgerLens is a proof of concept that extracts and categorizes transactions and applies illustrative risk rules. Its scores and labels are uncalibrated and have not been validated for credit decisions.</p>
 </div>
+<div role="note" style="border:1px solid #D9A06B;background:#FFF7ED;border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.5;color:#5C3512"><strong>Prototype — synthetic data only.</strong> Do not upload real customer or personal financial data. Arithmetic and page checks can flag some inconsistencies but cannot prove a statement is authentic or complete. Human review does not make the score a validated lending decision.</div>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <button type="button" onClick="{{goIngest}}" style="background:#1F4FD1;color:#FFFFFF;border:1px solid #1F4FD1;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Upload a statement</button>
 <button type="button" onClick="{{goSamples}}" style="background:#FFFFFF;color:#16181D;border:1px solid #9EA2AA;border-radius:4px;padding:10px 16px;min-height:44px;font-weight:600;cursor:pointer">Try a practice sample</button>
@@ -167,7 +168,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:16px;align-items:start">
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:12px">
 <h2 style="margin:0;font-size:16px;font-weight:600">How the credit score is built</h2>
-<p style="margin:0;font-size:13px;color:#30343B">Six parts, each scored 0–100, weighted and added up to a score out of 1000.</p>
+<p style="margin:0;font-size:13px;color:#30343B">Six developer-defined parts are weighted into a score out of 1000. The weights and cut-offs are illustrative, not calibrated measures of creditworthiness.</p>
 <div style="display:flex;flex-direction:column;gap:8px">
 <sc-for list="{{homeWeights}}" as="w" hint-placeholder-count="6">
 <div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;justify-content:space-between;gap:10px;font-size:13px"><span><strong>{{w.name}}</strong> <span style="color:#4A4F58">· {{w.what}}</span></span><span class="mono" style="font-weight:600">{{w.pct}}%</span></div><div style="height:6px;border-radius:3px;background:#ECEAE4"><div style="{{w.bar}}"></div></div></div>
@@ -176,26 +177,27 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:12px">
 <sc-for list="{{homeBands}}" as="b" hint-placeholder-count="5"><span style="{{b.style}}; border-radius:4px; padding:4px 8px"><strong>{{b.band}}</strong> {{b.range}} → {{b.dec}}</span></sc-for>
 </div>
-<p style="margin:0;font-size:12px;color:#4A4F58">Hard rules can override the band: tampering, structured cash deposits or circular money flows send the case for review, and EMIs above 65% of income decline it.</p>
+<p style="margin:0;font-size:12px;color:#4A4F58">Configured prototype heuristics can override the band. These labels and thresholds are unvalidated and are not a lending policy.</p>
 </div>
 <div style="display:flex;flex-direction:column;gap:16px">
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:10px">
 <h2 style="margin:0;font-size:16px;font-weight:600">Built-in safeguards</h2>
 <ul style="margin:0;padding-left:18px;font-size:13px;color:#30343B;display:flex;flex-direction:column;gap:6px">
 <li><strong>22 data validation checks</strong>, such as the running balance on every row, opening vs closing balance, duplicates and date gaps.</li>
-<li><strong>Page-order check</strong> stops the run if pages are jumbled or missing.</li>
-<li><strong>Smart review</strong> asks a person only about items that can change the decision.</li>
-<li><strong>Provisional decisions</strong> until every open item is resolved.</li>
+<li><strong>Page-order checks</strong> can flag some jumbled or missing pages; they do not verify authenticity or completeness.</li>
+<li><strong>Review queue</strong> surfaces selected uncertain items for human inspection; it cannot guarantee the analysis is correct.</li>
+<li><strong>Provisional labels</strong> remain until configured review items are resolved; resolving them does not validate a lending decision.</li>
 <li><strong>Full audit trail</strong> of every run and step in the Activity log.</li>
 </ul>
 </div>
 <div style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:10px">
 <h2 style="margin:0;font-size:16px;font-weight:600">Good to know</h2>
 <ul style="margin:0;padding-left:18px;font-size:13px;color:#30343B;display:flex;flex-direction:column;gap:6px">
-<li>With Rules only, files are read in your browser and never uploaded. With the LLM on, page text goes through your backend to the model.</li>
-<li>The AI step calls Claude when the app runs with its backend (npm start + an API key). On this hosted page there is no backend, so rules do the work and are labelled as such.</li>
-<li>OCR on scans can misread digits. The balance checks catch this and send the case for review.</li>
+<li>In the browser workflow, files are parsed in your browser. Browser activity/rule data may persist locally and may sync to a connected backend. With LLM mode, extracted page text goes through your backend to the configured model. The separate API v1 stores uploaded files unencrypted under <span class="mono">DATA_DIR</span>.</li>
+<li>The AI step calls Claude when the app runs with its backend and an API key. The hosted artifact source has no app backend and uses rules only; the deployed artifact is separate and has not been independently verified.</li>
+<li>OCR can misread digits. Arithmetic checks may flag some inconsistencies but do not catch or correct every OCR error.</li>
 <li>Practice samples use made-up data for a fictional applicant.</li>
+<li><span class="mono">DEMO_MODE=1</span> displays a banner only; it does not technically block real-data uploads. Use synthetic samples only.</li>
 </ul>
 </div>
 </div>
@@ -242,6 +244,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 <h2 style="margin:0 0 6px;font-size:16px;font-weight:600">Upload statements</h2>
 <p style="margin:0;color:#4A4F58">Upload one or more statements. Multi-month files and several accounts (individual, joint, credit card) in one upload are supported.</p>
 </div>
+<div role="note" style="border:1px solid #D9A06B;background:#FFF7ED;border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.5;color:#5C3512"><strong>Use synthetic statements only.</strong> This proof of concept is not validated for lending. Do not upload real customer or personal financial data. The demo banner is not an upload restriction.</div>
 
 <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1.5px dashed #9EA2AA;border-radius:6px;padding:28px 16px;cursor:pointer;background:#FAFAF7;text-align:center">
 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1F4FD1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"></path></svg>
@@ -330,7 +333,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,label:focus-within
 </sc-if>
 </div>
 <div style="font-size:12px;color:#4A4F58;border-top:1px solid #E4E1DA;padding-top:14px;display:flex;flex-direction:column;gap:4px">
-<span><strong style="color:#16181D">Where your data goes.</strong> With <em>Rules only</em>, files are read in your browser and never leave it. With <em>LLM</em>, the page text is sent through your own backend to the model.</span>
+<span><strong style="color:#16181D">Where your data goes.</strong> Browser analysis keeps the source file in the browser; browser activity/rule data may persist locally and may sync to a connected backend. LLM mode sends extracted page text through your backend to the configured model. The separate API v1 stores uploaded files unencrypted under <span class="mono">DATA_DIR</span>. Use synthetic data only.</span>
 <span>Scans and photos take a few seconds per page.</span>
 </div>
 </div>
@@ -657,7 +660,7 @@ Page 1 of 12</pre></div>
 <sc-if value="{{hasRisk}}" hint-placeholder-val="{{true}}">
 <section style="background:#FFFFFF;border:1px solid #DAD8D2;border-radius:6px;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:28px">
 <div style="display:flex;flex-direction:column;gap:14px">
-<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">CREDIT RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div><button type="button" onClick="{{risk.scoreInfo.infoToggle}}" aria-expanded="{{risk.scoreInfo.infoExp}}" aria-label="{{risk.scoreInfo.infoLabel}}" title="How this score is calculated" style="{{risk.scoreInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">EXPERIMENTAL RISK SUMMARY · {{risk.customer}} · {{risk.period}} · {{risk.nAcc}} accounts · {{risk.nTx}} txns</div><button type="button" onClick="{{risk.scoreInfo.infoToggle}}" aria-expanded="{{risk.scoreInfo.infoExp}}" aria-label="{{risk.scoreInfo.infoLabel}}" title="How this score is calculated" style="{{risk.scoreInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
 <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
 <span class="mono" style="font-size:72px;font-weight:600;line-height:1;letter-spacing:-.03em">{{risk.total}}</span>
 <span class="mono" style="font-size:16px;color:#4A4F58">/ 1000</span>
@@ -675,12 +678,13 @@ Page 1 of 12</pre></div>
 <sc-if value="{{risk.scoreInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{risk.scoreInfo.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{risk.scoreInfo.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{risk.scoreInfo.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 <div style="display:flex;flex-direction:column;gap:12px">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">DECISION RECOMMENDATION</div><button type="button" onClick="{{risk.decInfo.infoToggle}}" aria-expanded="{{risk.decInfo.infoExp}}" aria-label="{{risk.decInfo.infoLabel}}" title="Why this decision" style="{{risk.decInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="font-size:11px;letter-spacing:.08em;font-weight:600;color:#4A4F58">PROTOTYPE LABEL · NOT A LENDING RECOMMENDATION</div><button type="button" onClick="{{risk.decInfo.infoToggle}}" aria-expanded="{{risk.decInfo.infoExp}}" aria-label="{{risk.decInfo.infoLabel}}" title="Why this label" style="{{risk.decInfo.infoBtn}}; border-width:1px; border-style:solid; border-radius:50%; width:30px; height:30px; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6"></path><path d="M12 7.5v.01"></path></svg></button></div>
 <div><span style="{{risk.decStyle}}">{{risk.decision}}</span></div>
 <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px">
 <sc-for list="{{risk.why}}" as="w" hint-placeholder-count="2"><li>{{w.w}}</li></sc-for>
 </ul>
-<p style="margin:0;font-size:12px;color:#4A4F58">Policy: band sets the base decision (Excellent/Good → APPROVE, Fair → WITH CONDITIONS, Below Average → REFER, Poor → DECLINE); hard rules override it (FOIR &gt; 65% → DECLINE; tampering, structuring or circular flows → REFER).</p>
+<p style="margin:0;font-size:12px;color:#4A4F58">Illustrative prototype rules map bands and configured flags to labels. Weights and thresholds are uncalibrated; these labels are not a lending policy, credit decision or instruction to act.</p>
+<div role="note" style="border:1px solid #D9A06B;background:#FFF7ED;border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.5;color:#5C3512"><strong>Unvalidated prototype output.</strong> This score cannot establish creditworthiness or statement authenticity. Review-queue completion does not turn it into a final lending decision.</div>
 <sc-if value="{{risk.decInfo.infoOpen}}" hint-placeholder-val="{{false}}"><div style="background:#F2F5FD;border:1px solid #C9D4F2;border-radius:4px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:12.5px;line-height:1.5;color:#22262D"><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1">WHAT IT MEASURES</span><span>{{risk.decInfo.ex.what}}</span><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">HOW IT IS SCORED</span><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px"><sc-for list="{{risk.decInfo.ex.how}}" as="h" hint-placeholder-count="3"><li>{{h.t}}</li></sc-for></ul><span style="font-size:10.5px;font-weight:600;letter-spacing:.08em;color:#1F4FD1;margin-top:4px">THIS STATEMENT</span><ul class="mono" style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px;font-size:11.5px"><sc-for list="{{risk.decInfo.ex.mine}}" as="m" hint-placeholder-count="3"><li>{{m.t}}</li></sc-for></ul></div></sc-if>
 </div>
 </section>
