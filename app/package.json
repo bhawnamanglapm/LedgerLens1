@@ -14,9 +14,9 @@
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",
     "better-sqlite3": "11.10.0",
-    "pdfjs-dist": "3.11.174",
+    "pdfjs-dist": "4.8.69",
     "tesseract.js": "5.1.1",
-    "xlsx": "0.18.5"
+    "xlsx": "npm:@e965/xlsx@0.20.3"
   },
   "engines": {
     "node": ">=18"

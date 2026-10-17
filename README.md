@@ -31,6 +31,7 @@ npm install                                  # pdfjs-dist, tesseract.js, English
 cp .env.example .env                         # then paste your Claude API key into .env
 npm start                                    # → http://localhost:8787
 ```
+PDF.js is loaded as an ES module with its matching worker. The `xlsx` dependency is pinned through the `@e965/xlsx` npm republisher at 0.20.3 because the older `xlsx` package published to npm has no patched release; re-check package provenance and run `npm audit --omit=dev` when updating dependencies. A clean dependency audit does not make uploaded files safe to process in a shared or production environment.
 **API key:** create one in the Claude Console (platform.claude.com → Settings → API keys); it is shown once and starts with `sk-ant-`. Keep it only in `app/.env` (ignored by git, never zipped) or in the `ANTHROPIC_API_KEY` environment variable — never in code, the browser, screenshots or the demo recording. Optional in `.env`: `LLM_MODEL` (default `claude-sonnet-5-5`), `PORT`.
 Open http://localhost:8787 → Ingest → **AI step: LLM (Claude)** is selected automatically when the key is set → upload a statement. Without a key the app still runs (rules only) and says so.
 
@@ -49,7 +50,7 @@ Exit codes: `0` success · `2` password needed or wrong · `3` pipeline stopped 
 
 ### Tests
 ```bash
-cd app && npm test        # 109 checks, offline, ~1 min — no API key needed
+cd app && npm test        # 110 checks, offline, ~1 min — no API key needed
 ```
 GitHub Actions runs the same tests on every push (`.github/workflows/test.yml`).
 
@@ -385,4 +386,3 @@ The same questions are answered in the app under **Knowledge sharing → Common 
 **Why does the online demo say "Rules only"?** The AI needs a private API key, which must never be in a public web page. The full AI mode runs locally with its own small server holding the key.
 
 **Where does my statement go?** On the online demo, nowhere: it is read inside your browser. When the app runs on your own server, the activity log (step messages, including file names, account numbers and results) is also saved on that server so the team can see it; in AI mode, page text goes to that server and from there to the model, nowhere else. PDF passwords are used once and never stored.
-

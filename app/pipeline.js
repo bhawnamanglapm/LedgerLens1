@@ -74,7 +74,12 @@ async function analyze(o) {
   try {
     if (o.sample) await c.runPipeline(c.genSample(o.sample), 'built-in sample: ' + o.sample);
     else {
-      const files = o.files.map((f) => { c._cliPaths[f.name] = path.resolve(f.path); return new File([fs.readFileSync(f.path)], f.name); });
+      const files = o.files.map((f) => {
+        c._cliPaths[f.name] = path.resolve(f.path);
+        const file = new Blob([fs.readFileSync(f.path)]);
+        Object.defineProperty(file, 'name', { value: f.name });
+        return file;
+      });
       await c.handleFiles(files);
       if (c.state.needPw) {
         const name = c.state.needPw.name;

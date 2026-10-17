@@ -481,7 +481,7 @@ class Component extends DCLogic {
     return canvas;
   }
   async pdfToPages(buf, password, ocrName) {
-    const lib = window.pdfjsLib;
+    const lib = window.pdfjsLibReady ? await window.pdfjsLibReady : window.pdfjsLib;
     if (!lib) throw new Error('PDF engine not loaded yet — try again in a moment.');
     const doc = await lib.getDocument({ data: buf, password: password || undefined, isEvalSupported: false }).promise;
     if (doc.numPages > 300) throw new Error('the PDF has ' + doc.numPages + ' pages — the limit is 300. Split it by period and upload the parts together.');
