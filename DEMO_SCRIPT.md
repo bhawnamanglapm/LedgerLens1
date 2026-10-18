@@ -15,6 +15,6 @@ Record the screen at 1440 px wide. Run the **local app** with your API key (`cd 
 | 9 | 3:25–3:45 | Upload `03a_scanned_page1.png`.. | "Scans and images go through OCR first, which runs in the browser, and the confidence of the reading is recorded." |
 | 10 | 3:45–4:00 | Click **Show samples**, then **Jumbled pages**. | "This configured page-order check stops this synthetic input with a clear error. Other missing or altered content may not be detected. Activity may be retained in the browser and, when connected, synced to the server. That's the current prototype." |
 
-**Optional clips.** Ingest → Batch log → Show details: the *Extraction* column shows each batch's model rows and agreement with the rule parser. Terminal: `npm test` (109 checks in the repository suite, including a deliberately inconsistent model row being rejected; this does not establish real-statement accuracy).
+**Optional clips.** Ingest → Batch log → Show details: the *Extraction* column shows each batch's model rows and agreement with the rule parser. Terminal: `npm test` (110 checks in the repository suite, including a deliberately inconsistent model row being rejected; this does not establish real-statement accuracy).
 
 **CLI clip (20 s).** Run `node cli.js ../test-statements/02_multi_month_multi_account.pdf --llm -o out.json`. It produces the same numbers as the web app.
