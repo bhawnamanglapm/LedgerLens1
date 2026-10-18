@@ -1,0 +1,33 @@
+{
+  "about": "LedgerLens decision eval set. Each case is a bank statement (or a bad input) and the credit outcome a careful analyst would expect. Expected values come from the statement's design (what was planted in it) and are the same values documented in the README test tables. All statements are synthetic; no real customer data.",
+  "criteria": {
+    "decision": "Final recommendation matches (APPROVE / APPROVE WITH CONDITIONS / REFER / DECLINE). This is the one that matters most: a wrong decision is a wrong credit call.",
+    "reason": "When the decision is driven by a hard rule (FOIR, no income, tampering, jumbled pages), the stated reason names that rule, so an analyst can see why.",
+    "score": "Composite score (0-1000) is exactly the documented value. Catches silent scoring drift.",
+    "transactions": "Number of transactions extracted is exactly the documented value. A missed or duplicated row changes every downstream number.",
+    "review": "Rows the engine is unsure about are sent to the human review queue instead of being guessed.",
+    "safe_stop": "Inputs that cannot be analysed safely stop with a clear message and a non-zero exit code instead of producing a score."
+  },
+  "cases": [
+    { "id": "E01", "file": "test-statements/01_single_month_digital.pdf", "what": "One month, digital PDF, mixed bank narration formats; page 2 has no header", "expect": { "exit": 0, "decision": "APPROVE", "score": 966, "transactions": 32 } },
+    { "id": "E02", "file": "test-statements/02_multi_month_multi_account.pdf", "what": "Three months, three accounts in one PDF; contains an EMI bounce, structuring and a circular money flow", "expect": { "exit": 0, "decision": "REFER", "score": 777, "transactions": 120 } },
+    { "id": "E03", "file": "test-statements/03a_scanned_page1.png", "what": "Scanned page (PNG) read by OCR", "expect": { "exit": 0, "decision": "APPROVE", "score": 959, "transactions": 18 } },
+    { "id": "E04", "file": "test-statements/03b_scanned_statement.pdf", "what": "Scanned multi-page PDF (image only, no text layer)", "needs": "pdftoppm", "expect": { "exit": 0, "decision": "APPROVE", "score": 966 } },
+    { "id": "E05", "file": "test-statements/03c_scanned_page1.jpg", "what": "Photographed page (JPG) with noise, blur and skew, read by OCR", "expect": { "exit": 0, "decision": "APPROVE", "score": 959, "transactions": 18 } },
+    { "id": "E06", "file": "test-statements/04_csv_export_jan2025.csv", "what": "Bank CSV export with header rows and quoted amounts", "expect": { "exit": 0, "decision": "APPROVE", "score": 966, "transactions": 32 } },
+    { "id": "E07", "file": "test-statements/05_remittances_feb2025.csv", "what": "Inward and outward foreign remittances (SWIFT / TT / FIRC)", "expect": { "exit": 0, "decision": "APPROVE", "score": 937, "transactions": 9 } },
+    { "id": "E08", "file": "test-statements/06_password_protected.pdf", "what": "Encrypted PDF, no password given", "expect": { "exit": 2, "stderr": "password-protected" } },
+    { "id": "E09", "file": "test-statements/06_password_protected.pdf", "args": ["--password", "wrong"], "what": "Encrypted PDF, wrong password", "expect": { "exit": 2, "stderr": "Wrong password" } },
+    { "id": "E10", "file": "test-statements/06_password_protected.pdf", "args": ["--password", "ledger2025"], "what": "Encrypted PDF, correct password (the password is public test data)", "expect": { "exit": 0, "decision": "APPROVE", "score": 966, "transactions": 32 } },
+    { "id": "E11", "file": "test-statements/scenarios/07_clean_salaried_approve.pdf", "what": "Steady salary, one home-loan EMI (FOIR 22%), ordinary spending", "expect": { "exit": 0, "decision": "APPROVE", "score": 970, "transactions": 30 } },
+    { "id": "E12", "file": "test-statements/scenarios/08_emi_bounce_conditions.pdf", "what": "One EMI bounced with a return charge, then paid on re-presentation", "expect": { "exit": 0, "decision": "APPROVE WITH CONDITIONS", "score": 888, "transactions": 27, "reason": "EMI bounce" } },
+    { "id": "E13", "file": "test-statements/scenarios/09_high_foir_decline.pdf", "what": "Two EMIs take 73% of salary; the score band alone would say Excellent", "expect": { "exit": 0, "decision": "DECLINE", "score": 853, "transactions": 15, "reason": "FOIR above 65%" } },
+    { "id": "E14", "file": "test-statements/scenarios/10_no_income_decline.pdf", "what": "Money comes in only from friends (P2P); late fees", "expect": { "exit": 0, "decision": "DECLINE", "score": 538, "transactions": 18, "reason": "No verifiable income" } },
+    { "id": "E15", "file": "test-statements/scenarios/11_tampered_balance_refer.pdf", "what": "One printed balance edited by +10,000", "expect": { "exit": 0, "decision": "REFER", "score": 910, "transactions": 30, "reason": "tampering" } },
+    { "id": "E16", "file": "test-statements/scenarios/12_jumbled_pages_error.pdf", "what": "Real PDF with pages 2 and 3 swapped", "expect": { "exit": 3, "stderr": "Pages appear jumbled" } },
+    { "id": "E17", "file": "test-statements/scenarios/13_cheques_review.pdf", "what": "Six cheque formats, some with no payee name, plus a transfer with no name", "expect": { "exit": 0, "decision": "APPROVE", "score": 952, "transactions": 28, "review_items": 4 } },
+    { "id": "E18", "sample": "jumbled", "what": "Built-in generated statement with pages out of order", "expect": { "exit": 3, "stderr": "Pages appear jumbled" } },
+    { "id": "E19", "files": ["test-statements/01_single_month_digital.pdf", "test-statements/01_single_month_digital.pdf"], "what": "The same statement uploaded twice (overlapping periods)", "expect": { "exit": 0, "decision": "APPROVE", "score": 966, "transactions": 32 } },
+    { "id": "E20", "file": "test-statements/01_single_month_digital.pdf", "args": ["--llm"], "env": { "ANTHROPIC_API_KEY": "", "LLM_PROVIDER": "" }, "rules_only_case": true, "what": "AI mode requested but no API key configured", "expect": { "exit": 4 } }
+  ]
+}

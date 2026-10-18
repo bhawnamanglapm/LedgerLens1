@@ -1,0 +1,32 @@
+# Decision log
+
+> **Draft for the owner to edit.** Each date is when the decision first appears in this repository, either in a commit
+> or in the product blueprint. The real decision may have been made earlier. The reasons are taken from the README, the
+> commit messages and the [product blueprint](LedgerLens_Product_Blueprint.pdf), not written after the fact. Where a
+> rejected alternative is not recorded anywhere, the entry says so instead of guessing.
+
+| Date | Decision | Why | Alternatives / tradeoff | Source |
+|---|---|---|---|---|
+| 2026-10-02 | **Rules first, then the model, then a person.** Deterministic rules label what they can; the model handles leftovers; uncertain rows go to review. | Indian narrations are semi-structured (UPI, NEFT, NACH formats), so rules can settle most rows and stay inspectable. | Model-first would cover more formats with less code, but cost more per statement and be harder to audit. Comparing the two was not recorded. | `7c6b564`; [TECHNICAL §3.1](TECHNICAL.md#3-key-design-decisions) |
+| 2026-10-02 | **The model never scores, validates or decides.** It only extracts rows and labels unclear ones, with temperature 0, a forced tool schema, and a balance check on its output. If a batch fails, it falls back to the rule parser. | A lender must explain each decision; fixed rules give the same answer every time. | Fewer things the model can help with, in exchange for an auditable decision path. | `7c6b564`; [TECHNICAL §3a](TECHNICAL.md#3a-llm-integration) |
+| 2026-10-02 | **Score weights 25/20/15/10/15/15** (income, debt, liquidity, banking behaviour, fraud, expenses) on a 0–1000 scale. | "As given in the brief." | Uncalibrated: no outcome data in a prototype. Calibration on repayment data is a later step. | `7c6b564`; [TECHNICAL §7](TECHNICAL.md#7-assumptions) |
+| 2026-10-02 | **Hard limits override the band.** No verifiable income or FOIR > 65% → DECLINE; broken arithmetic and some fraud flags → REFER; an EMI bounce → at most APPROVE WITH CONDITIONS. | An average score can hide a deal-breaker. | A pure score would be simpler to explain as one number, but would approve some applicants who cannot afford the loan. | `7c6b564`; [TECHNICAL §3.4](TECHNICAL.md#3-key-design-decisions) |
+| 2026-10-02 | **Only salary, business income, interest and rent count as income.** | "Not every credit is income" (from the brief). P2P money, refunds, loan disbursals and own-account transfers would inflate income. | May under-count informal or gig income. | `7c6b564`; [TECHNICAL §3.5](TECHNICAL.md#3-key-design-decisions) |
+| 2026-10-02 | **Smart review: queue only high-impact uncertain rows**, group similar ones, let a fix become a rule. | "A queue nobody can finish is useless." | Low-impact uncertain rows are auto-accepted and marked, so a person never sees them. | `7c6b564`; [TECHNICAL §3.6](TECHNICAL.md#3-key-design-decisions) |
+| 2026-10-02 | **Check arithmetic; never claim authenticity.** | Valid arithmetic does not prove a statement is genuine. | No "verified" badge. The wording was tightened on 2026-10-17 (PR #1). | `7c6b564`, `830d496` |
+| 2026-10-02 | **A row's currency is the currency its amounts are in**; foreign amounts are kept separately (`original_currency`, `original_amount`). | A foreign card spend was tagged USD while its debit was the INR amount billed. | — | `2f9347d` |
+| 2026-10-02 | **Rows with no counterparty always go to review**, whatever the amount. | Counterparty is a mandatory field; a small unnamed transfer was being auto-accepted. | Slightly more review work: one more item on several samples. | `b50101c` |
+| 2026-10-02 | **The method label must say who actually decided** (RULE, LLM or MANUAL). | With the model off, fallback rows were labelled LLM although no model ran. | — | `8e157b0` |
+| 2026-10-02 | **Category keywords must start a word.** | "EMI" matched inside "REMITTANCE" and "PREMIUM", so those were counted as loan repayments. | — | `e52bc26` |
+| 2026-10-02 | **Each file restarts its running balance at its own opening balance.** | One duplicate row from overlapping uploads turned 966 APPROVE into 853 REFER. | — | `cc44e74` |
+| 2026-10-03 | **One synthetic statement per decision path** as the regression and demo set. | Every decision and error path should be reachable and tested with a real file, not just generated data. | Synthetic data tests the design, not real-world accuracy. | `18fb52a` |
+| 2026-10-03 | **One-click example statements in the app, each showing its expected result.** | Reviewers can check the app's answer against the documented one. | — | `7ffca38` |
+| 2026-10-04 | **API v1 on one server: SQLite and an in-process queue.** Postgres, a shared queue and object storage are deferred. | Enough for a prototype; the API and data model stay the same when scaled. | Uploads are stored unencrypted; no retention policy (open P0). | `dcbdca6`; [TECHNICAL §3b](TECHNICAL.md#3b-backend-api-v1-storage-background-queue-review-decisions) |
+| 2026-10-04 | **Explain every score component in plain language**, with the statement's own numbers (ⓘ panels). | A test now checks that the explanations match the real calculation. | — | `a01cc89` |
+| 2026-10-04 | **Positioning: an explainable, reviewer-first layer for Indian lenders.** The lender keeps the final decision; fully automated decisions are marked "Won't (for now)". | The blueprint judges extraction to be becoming a commodity and the officer's experience to be poorly served. | Vendor claims in the blueprint come from search summaries and are marked "claimed". | `2989d0d`; [blueprint](LedgerLens_Product_Blueprint.pdf) §1, §2, §13 |
+| 2026-10-17 | **Present it as a prototype**: labels are not lending recommendations; warnings at upload and next to results. | Earlier copy could read as a verified, actionable credit decision. | — | PR #1, `830d496` |
+| 2026-10-17 | **Patch the document-parser advisories** while keeping Node 18 compatibility. | Three high and one critical advisory in `pdfjs-dist`, `xlsx` and `tar`. | — | PR #2, `103b804` |
+| 2026-10-19 | **Add a decision eval set** (`evals/`); publish rules-mode results only until AI mode is run with the owner's key. | Results must come from runs, not estimates. | Expected values were set by the builder on synthetic data, so the set checks the design rather than real-world accuracy. | This change |
+
+> **OWNER INPUT NEEDED:** add any decision that was made outside the code, such as choosing India and NBFC lenders,
+> choosing Claude as the model, or anything you rejected and why.
